@@ -20,6 +20,8 @@
 #include "cmState.h"
 #include "cmStringAlgorithms.h"
 #include "cmSystemTools.h"
+#include "cmake.h"
+#include "cmMakefile.h"
 
 namespace {
 
@@ -84,7 +86,8 @@ bool cmMacroHelperCommand::operator()(
   }
   // Invoke all the functions that were collected in the block.
   // for each function
-  for (cmListFileFunction const& func : this->Functions) {
+  for (size_t i = 0; i < Functions.size(); i++) {
+    cmListFileFunction const& func = Functions[i];
     // Replace the formal arguments and then invoke the command.
     std::vector<cmListFileArgument> newLFFArgs;
     newLFFArgs.reserve(func.Arguments().size());
@@ -135,6 +138,16 @@ bool cmMacroHelperCommand::operator()(
       inStatus.SetBreakInvoked();
       return true;
     }
+	
+#ifndef CMAKE_BOOTSTRAP
+    auto pDebugServer = makefile.GetCMakeInstance()->GetDebugServer();
+    if (pDebugServer) {
+      bool skipThisInstruction = false;
+      i++;
+      pDebugServer->AdjustNextExecutedFunction(Functions, i);
+      i--;
+    }
+#endif	
   }
   return true;
 }
