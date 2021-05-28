@@ -509,6 +509,19 @@ bool cmMakefile::ExecuteCommand(const cmListFileFunction& lff,
       if (this->GetCMakeInstance()->GetTrace()) {
         this->PrintCommandTrace(lff, this->Backtrace);
       }
+	  
+#ifndef CMAKE_BOOTSTRAP
+      std::unique_ptr<Sysprogs::HLDPServer::RAIIScope> pScope;
+      auto pDebugServer =
+        GlobalGenerator->GetCMakeInstance()->GetDebugServer();
+      bool skipThisInstruction = false;
+      if (pDebugServer)
+        pScope = pDebugServer->OnExecutingInitialPass(this, lff,
+            skipThisInstruction);
+      if (skipThisInstruction)
+        return true;
+#endif
+	  
       // Try invoking the command.
       bool invokeSucceeded = command(lff.Arguments(), status);
       bool hadNestedError = status.GetNestedError();
@@ -898,6 +911,15 @@ void cmMakefile::RunListFile(cmListFile const& listFile,
       // Exit early due to return command.
       break;
     }
+	
+#ifndef CMAKE_BOOTSTRAP
+    auto pDebugServer = GlobalGenerator->GetCMakeInstance()->GetDebugServer();
+    if (pDebugServer) {
+      i++;
+      pDebugServer->AdjustNextExecutedFunction(listFile.Functions, i);
+      i--;
+    }
+#endif	
   }
 
   // Run any deferred commands.
@@ -2234,6 +2256,12 @@ std::pair<cmTarget&, bool> cmMakefile::CreateNewTarget(
   const std::string& name, cmStateEnums::TargetType type,
   cmTarget::PerConfig perConfig, cmTarget::Visibility vis)
 {
+#ifndef CMAKE_BOOTSTRAP
+  auto* pDebugServer = GetCMakeInstance()->GetDebugServer();
+  if (pDebugServer)
+    pDebugServer->OnTargetCreated(type, name);
+#endif
+
   auto ib =
     this->Targets.emplace(name, cmTarget(name, type, vis, this, perConfig));
   auto it = ib.first;
