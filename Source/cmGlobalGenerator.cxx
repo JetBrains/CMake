@@ -1320,6 +1320,10 @@ void cmGlobalGenerator::Configure()
                "CMake-generated project build trees."));
   }
 
+#ifndef CMAKE_BOOTSTRAP
+  this->CMakeInstance->StartDebugServerIfEnabled();
+#endif
+
   // now do it
   dirMf->Configure();
   dirMf->EnforceDirectoryLevelRules();
