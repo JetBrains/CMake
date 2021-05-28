@@ -2,6 +2,7 @@
    file LICENSE.rst or https://cmake.org/licensing for details.  */
 #include "cmVariableWatch.h"
 
+#include "cmake.h"
 #include <array>
 #include <memory>
 #include <utility>
@@ -19,7 +20,10 @@ std::string const& cmVariableWatch::GetAccessAsString(int access_type)
   return cmVariableWatchAccessStrings[access_type];
 }
 
-cmVariableWatch::cmVariableWatch() = default;
+cmVariableWatch::cmVariableWatch(cmake* owner)
+  : m_pOwner(owner)
+{
+}
 
 cmVariableWatch::~cmVariableWatch() = default;
 
@@ -66,6 +70,10 @@ bool cmVariableWatch::VariableAccessed(std::string const& variable,
                                        int access_type, char const* newValue,
                                        cmMakefile const* mf) const
 {
+  auto* pDebugServer = m_pOwner->GetDebugServer();
+  if (pDebugServer)
+    pDebugServer->OnVariableAccessed(variable, access_type, newValue, mf);
+
   auto mit = this->WatchMap.find(variable);
   if (mit != this->WatchMap.end()) {
     // The strategy here is to copy the list of callbacks, and ignore
