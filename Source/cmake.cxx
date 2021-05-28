@@ -4237,7 +4237,7 @@ void cmake::StartDebugServerIfEnabled()
     m_pDebugServer.reset(new Sysprogs::HLDPServer(DebugServerPort));
     if (!m_pDebugServer->WaitForClient()) {
       cmSystemTools::Error("Failed to start debugging server. Aborting...");
-      cmSystemTools::SetFatalErrorOccured();
+      cmSystemTools::SetFatalErrorOccurred();
     }
   }
 }
