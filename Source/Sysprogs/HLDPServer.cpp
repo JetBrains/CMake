@@ -239,7 +239,7 @@ namespace Sysprogs
 			std::string empty;
 			for (const std::string &key : properties.GetKeys())
 			{
-				cmProp value = properties.GetPropertyValue(key);
+				cmValue value = properties.GetPropertyValue(key);
 				result.push_back(std::make_unique<SimpleExpression>(key, "(property entry)", value ? *value : empty));
 			}
 			return std::move(result);
@@ -572,14 +572,14 @@ namespace Sysprogs
 		if (!m_pSocket->Write(&hdr, sizeof(hdr)))
 		{
 			cmSystemTools::Error("Failed to write debug protocol reply header.");
-			cmSystemTools::SetFatalErrorOccured();
+			cmSystemTools::SetFatalErrorOccurred();
 			return false;
 		}
 
 		if (!m_pSocket->Write(builder.GetBuffer().data(), hdr.PayloadSize))
 		{
 			cmSystemTools::Error("Failed to write debug protocol reply payload.");
-			cmSystemTools::SetFatalErrorOccured();
+			cmSystemTools::SetFatalErrorOccurred();
 			return false;
 		}
 
@@ -592,7 +592,7 @@ namespace Sysprogs
 		if (!m_pSocket->ReadAll(&hdr, sizeof(hdr)))
 		{
 			cmSystemTools::Error("Failed to receive debug protocol request header.");
-			cmSystemTools::SetFatalErrorOccured();
+			cmSystemTools::SetFatalErrorOccurred();
 			return HLDPPacketType::Invalid;
 		}
 
@@ -602,7 +602,7 @@ namespace Sysprogs
 			if (!m_pSocket->ReadAll(pBuffer, hdr.PayloadSize))
 			{
 				cmSystemTools::Error("Failed to receive debug protocol request payload.");
-				cmSystemTools::SetFatalErrorOccured();
+				cmSystemTools::SetFatalErrorOccurred();
 				return HLDPPacketType::Invalid;
 			}
 		}
@@ -733,7 +733,7 @@ namespace Sysprogs
 				return;
 			case HLDPPacketType::csTerminate:
 				cmSystemTools::Error("Configuration aborted via debugging interface.");
-				cmSystemTools::SetFatalErrorOccured();
+				cmSystemTools::SetFatalErrorOccurred();
 				return;
 			case HLDPPacketType::csCreateExpression:
 			{
@@ -866,7 +866,7 @@ namespace Sysprogs
 		if (m_pServer->m_CallStack.back() != this)
 		{
 			cmSystemTools::Error("CMake scope imbalance detected");
-			cmSystemTools::SetFatalErrorOccured();
+			cmSystemTools::SetFatalErrorOccurred();
 		}
 
 		if (m_UniqueID == m_pServer->m_EndOfStepScopeID)
@@ -891,7 +891,7 @@ namespace Sysprogs
 				return nullptr;
 		}
 
-		const std::string *pValue = cmDefinitions::Get(text, scope.Position->Vars, scope.Position->Root);
+		cmValue pValue = cmDefinitions::Get(text, scope.Position->Vars, scope.Position->Root);
 		if (pValue)
 			return std::make_unique<VariableExpression>(scope, text, pValue->c_str());
 
@@ -899,7 +899,7 @@ namespace Sysprogs
 		if (pTarget)
 			return std::make_unique<TargetExpression>(pTarget);
 
-		cmProp pCacheValue = scope.Makefile->GetState()->GetCacheEntryValue(text);
+		cmValue pCacheValue = scope.Makefile->GetState()->GetCacheEntryValue(text);
 		if (pCacheValue)
 		{
 			return std::make_unique<CacheEntryExpression>(text, pCacheValue->c_str());
