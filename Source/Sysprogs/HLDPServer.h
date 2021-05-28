@@ -6,7 +6,7 @@
 
 class cmCommand;
 class BasicIncomingSocket;
-struct cmListFileFunction;
+class cmListFileFunction;
 enum class MessageType;
 
 namespace Sysprogs
