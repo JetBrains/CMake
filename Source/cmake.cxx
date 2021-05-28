@@ -291,7 +291,7 @@ cmake::cmake(Role role, cmState::Mode mode, cmState::ProjectKind projectKind)
   : CMakeWorkingDirectory(cmSystemTools::GetCurrentWorkingDirectory())
   , FileTimeCache(cm::make_unique<cmFileTimeCache>())
 #ifndef CMAKE_BOOTSTRAP
-  , VariableWatch(cm::make_unique<cmVariableWatch>())
+  , VariableWatch(cm::make_unique<cmVariableWatch>(this))
 #endif
   , State(cm::make_unique<cmState>(mode, projectKind))
   , Messenger(cm::make_unique<cmMessenger>())
@@ -1128,6 +1128,12 @@ void cmake::SetArgs(const std::vector<std::string>& args)
     CommandArgument{ "--log-context", CommandArgument::Values::Zero,
                      [](std::string const&, cmake* state) -> bool {
                        state->SetShowLogContext(true);
+                       return true;
+                     } },
+
+    CommandArgument{ "--debug-server-port", CommandArgument::Values::One,
+                     [](std::string const& value, cmake* state) -> bool {
+                       state->SetDebugServerPort(atoi(value.c_str()));
                        return true;
                      } },
     CommandArgument{
@@ -3588,6 +3594,10 @@ int cmake::GetSystemInformation(std::vector<std::string>& args)
 void cmake::IssueMessage(MessageType t, std::string const& text,
                          cmListFileBacktrace const& backtrace) const
 {
+#ifndef CMAKE_BOOTSTRAP
+  if (m_pDebugServer)
+    m_pDebugServer->OnMessageProduced(t, text);
+#endif	
   this->Messenger->IssueMessage(t, text, backtrace);
 }
 
@@ -4219,6 +4229,25 @@ bool cmake::GetDeprecatedWarningsAsErrors() const
 {
   return this->Messenger->GetDeprecatedWarningsAsErrors();
 }
+
+#ifndef CMAKE_BOOTSTRAP
+void cmake::StartDebugServerIfEnabled()
+{
+  if (!m_pDebugServer && DebugServerPort) {
+    m_pDebugServer.reset(new Sysprogs::HLDPServer(DebugServerPort));
+    if (!m_pDebugServer->WaitForClient()) {
+      cmSystemTools::Error("Failed to start debugging server. Aborting...");
+      cmSystemTools::SetFatalErrorOccured();
+    }
+  }
+}
+
+void cmake::StopDebugServerIfNeeded()
+{
+  if (m_pDebugServer)
+    m_pDebugServer.reset(nullptr);
+}
+#endif
 
 void cmake::SetDeprecatedWarningsAsErrors(bool b)
 {
