@@ -704,6 +704,8 @@ add_library(
   cmSeparateArgumentsCommand.cxx
   cmSeparateArgumentsCommand.h
   cmSetCommand.cxx
+  Sysprogs/HLDPServer.cpp
+  Sysprogs/BasicBreakpointManager.cpp
   cmSetCommand.h
   cmSetDirectoryPropertiesCommand.cxx
   cmSetDirectoryPropertiesCommand.h

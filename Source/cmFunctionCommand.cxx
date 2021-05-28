@@ -17,6 +17,8 @@
 #include "cmPolicies.h"
 #include "cmRange.h"
 #include "cmState.h"
+#include "cmake.h"
+#include "cmMakefile.h"
 #include "cmStringAlgorithms.h"
 #include "cmSystemTools.h"
 
@@ -112,9 +114,9 @@ bool cmFunctionHelperCommand::operator()(
 
   // Invoke all the functions that were collected in the block.
   // for each function
-  for (cmListFileFunction const& func : this->Functions) {
+  for (size_t i = 0; i < Functions.size(); i++) {
     cmExecutionStatus status(makefile);
-    if (!makefile.ExecuteCommand(func, status) || status.GetNestedError()) {
+    if (!makefile.ExecuteCommand(Functions[i], status) || status.GetNestedError()) {
       // The error message should have already included the call stack
       // so we do not need to report an error here.
       functionScope.Quiet();
@@ -129,6 +131,16 @@ bool cmFunctionHelperCommand::operator()(
       inStatus.SetExitCode(status.GetExitCode());
       break;
     }
+
+#ifndef CMAKE_BOOTSTRAP
+    auto pDebugServer = makefile.GetCMakeInstance()->GetDebugServer();
+    if (pDebugServer) {
+      bool skipThisInstruction = false;
+      i++;
+      pDebugServer->AdjustNextExecutedFunction(Functions, i);
+      i--;
+    }
+#endif
   }
 
   // pop scope on the makefile
