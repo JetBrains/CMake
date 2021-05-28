@@ -34,6 +34,8 @@
 
 #  include "cmCMakePresetsGraph.h"
 #  include "cmMakefileProfilingData.h"
+
+#  include "Sysprogs/HLDPServer.h"
 #endif
 
 class cmConfigureLog;
@@ -196,6 +198,12 @@ public:
   void SetHomeOutputDirectory(const std::string& dir);
   std::string const& GetHomeOutputDirectory() const;
   //@}
+
+#ifndef CMAKE_BOOTSTRAP
+  void StartDebugServerIfEnabled();
+  void StopDebugServerIfNeeded();
+  Sysprogs::HLDPServer* GetDebugServer() { return m_pDebugServer.get(); }
+#endif
 
   /**
    * Working directory at CMake launch
@@ -632,7 +640,9 @@ public:
 
   void UnwatchUnusedCli(const std::string& var);
   void WatchUnusedCli(const std::string& var);
-
+  unsigned GetDebugServerPort() const { return DebugServerPort; }
+  void SetDebugServerPort(unsigned port) { DebugServerPort = port; }
+  
   cmState* GetState() const { return this->State.get(); }
   void SetCurrentSnapshot(cmStateSnapshot const& snapshot)
   {
@@ -684,6 +694,11 @@ protected:
   std::string GeneratorInstance;
   std::string GeneratorPlatform;
   std::string GeneratorToolset;
+  unsigned DebugServerPort = 0;
+#ifndef CMAKE_BOOTSTRAP
+  std::unique_ptr<Sysprogs::HLDPServer> m_pDebugServer;
+#endif
+  
   bool GeneratorInstanceSet = false;
   bool GeneratorPlatformSet = false;
   bool GeneratorToolsetSet = false;
