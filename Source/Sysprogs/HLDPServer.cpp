@@ -240,7 +240,7 @@ namespace Sysprogs
 			std::string empty;
 			for (const std::string &key : properties.GetKeys())
 			{
-				cmProp value = properties.GetPropertyValue(key);
+				cmValue value = properties.GetPropertyValue(key);
 				result.push_back(std::make_unique<SimpleExpression>(key, "(property entry)", value ? *value : empty));
 			}
 			return std::move(result);
@@ -892,7 +892,7 @@ namespace Sysprogs
 				return nullptr;
 		}
 
-		const std::string *pValue = cmDefinitions::Get(text, scope.Position->Vars, scope.Position->Root);
+		cmValue pValue = cmDefinitions::Get(text, scope.Position->Vars, scope.Position->Root);
 		if (pValue)
 			return std::make_unique<VariableExpression>(scope, text, pValue->c_str());
 
@@ -900,7 +900,7 @@ namespace Sysprogs
 		if (pTarget)
 			return std::make_unique<TargetExpression>(pTarget);
 
-		cmProp pCacheValue = scope.Makefile->GetState()->GetCacheEntryValue(text);
+		cmValue pCacheValue = scope.Makefile->GetState()->GetCacheEntryValue(text);
 		if (pCacheValue)
 		{
 			return std::make_unique<CacheEntryExpression>(text, pCacheValue->c_str());

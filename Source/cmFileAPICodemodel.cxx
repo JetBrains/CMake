@@ -1789,7 +1789,7 @@ Json::Value Target::DumpLink()
     }
 
     if (cmLinkImplementation const* impl =
-          this->GT->GetLinkImplementation(this->Config)) {
+          this->GT->GetLinkImplementation(this->Config, cmGeneratorTarget::LinkInterfaceFor::Link)) {
 
       Json::Value fragments;
 
