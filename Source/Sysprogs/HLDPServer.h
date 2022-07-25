@@ -15,6 +15,7 @@ namespace Sysprogs
 	class RequestReader;
 	enum class HLDPPacketType;
 	enum class TargetStopReason;
+	enum class ExpressionType;
 
 	class HLDPServer
 	{
@@ -69,6 +70,7 @@ namespace Sysprogs
 		public:
 			UniqueExpressionID AssignedID = -1;
 			std::string Name, Value, Type;
+			ExpressionType ExprType;
 			int ChildCountOrMinusOneIfNotYetComputed = 0;
 
 		public:
