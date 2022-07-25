@@ -246,6 +246,42 @@ namespace Sysprogs
 			return std::move(result);
 		}
 	};
+
+	// Expression for the whole CMakeCache.txt with cache entries as children.
+	// Has no children if cache is not used.
+	class HLDPServer::CacheTxtExpression : public ExpressionBase
+	{
+	private:
+		cmMakefile *m_file;
+
+		bool cacheIsUsed() {
+			return m_file && m_file->GetState()->GetCacheMajorVersion();
+		}
+
+	public:
+		CacheTxtExpression(cmMakefile *pFile) : m_file(pFile)
+		{
+			Type = "(CMakeCache.txt)";
+			Name = "CMakeCache.txt";
+			Value = "";
+			ChildCountOrMinusOneIfNotYetComputed = cacheIsUsed() ? -1 : 0;
+		}
+
+		virtual std::vector<std::unique_ptr<ExpressionBase>> CreateChildren() override
+		{
+			std::vector<std::unique_ptr<ExpressionBase>> result;
+			if (cacheIsUsed()) { // cache is used
+				std::string empty;
+				for (const auto &key : m_file->GetState()->GetCacheEntryKeys()) {
+					cmValue value = m_file->GetState()->GetCacheEntryValue(key);
+					if (value) {
+						result.push_back(std::make_unique<CacheEntryExpression>(key, value->c_str()));
+					}
+				}
+			}
+			return std::move(result);
+		}
+	};
 #pragma endregion
 
 	enum class CMakeDomainSpecificBreakpointType
@@ -900,6 +936,10 @@ namespace Sysprogs
 			}
 			else
 				return nullptr;
+		}
+
+		if (text == "CMakeCache.txt") { // synthetic variable holding all CMakeCache entries
+			return std::make_unique<CacheTxtExpression>(scope.Makefile);
 		}
 
 		cmValue pValue = cmDefinitions::Get(text, scope.Position->Vars, scope.Position->Root);
