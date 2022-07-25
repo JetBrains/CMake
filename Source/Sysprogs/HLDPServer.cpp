@@ -655,6 +655,16 @@ namespace Sysprogs
 			builder.AppendString(args);
 			builder.AppendString(pEntry->SourceFile);
 			builder.AppendInt32(pEntry->Function.Line());
+
+			auto argCount = builder.AppendDelayedInt32();
+			if (i > 0) {
+				for (const auto &arg : m_CallStack[i - 1]->Function.Arguments())
+				{
+					builder.AppendString(arg.Value);
+					(*argCount)++;
+				}
+			}
+
 			(*backtraceEntryCount)++;
 		}
 
