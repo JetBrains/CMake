@@ -91,6 +91,7 @@ namespace Sysprogs
 		class CacheEntryExpression;
 		class EnvironmentVariableExpression;
 		class TargetExpression;
+		class CacheTxtExpression;
 		class TargetPropertyListExpression;
 		class EnvironmentMetaExpression;
 
