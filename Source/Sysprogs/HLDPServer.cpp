@@ -121,6 +121,7 @@ namespace Sysprogs
 		{
 			Name = name;
 			Type = type;
+			ExprType = ExpressionType::Property;
 			Value = value;
 		}
 	};
@@ -135,6 +136,7 @@ namespace Sysprogs
 		{
 			Name = name;
 			Type = "(CMake Expression)";
+			ExprType = ExpressionType::Variable;
 			Value = pValue;
 		}
 
@@ -161,6 +163,7 @@ namespace Sysprogs
 		{
 			Name = name;
 			Type = "(CMake Expression)";
+			ExprType = ExpressionType::CacheEntry;
 			Value = pValue;
 		}
 
@@ -184,6 +187,7 @@ namespace Sysprogs
 				Name = "[" + name + "]";
 
 			Type = "(Environment Variable)";
+			ExprType = ExpressionType::EnvVar;
 			Value = value;
 		}
 
@@ -201,6 +205,7 @@ namespace Sysprogs
 		{
 			Name = "$ENV";
 			Type = "(CMake Environment)";
+			ExprType = ExpressionType::Env;
 			Value = "<...>";
 			ChildCountOrMinusOneIfNotYetComputed = -1;
 		}
@@ -228,6 +233,7 @@ namespace Sysprogs
 		TargetExpression(cmTarget *pTarget) : m_pTarget(pTarget)
 		{
 			Type = "(CMake target)";
+			ExprType = ExpressionType::Target;
 			Name = pTarget->GetName();
 			Value = "target";
 			ChildCountOrMinusOneIfNotYetComputed = -1;
@@ -262,6 +268,7 @@ namespace Sysprogs
 		CacheTxtExpression(cmMakefile *pFile) : m_file(pFile)
 		{
 			Type = "(CMakeCache.txt)";
+			ExprType = ExpressionType::Cache;
 			Name = "CMakeCache.txt";
 			Value = "";
 			ChildCountOrMinusOneIfNotYetComputed = cacheIsUsed() ? -1 : 0;
@@ -806,6 +813,7 @@ namespace Sysprogs
 						builder.AppendString(pExpression->Value);
 						builder.AppendInt32(0);
 						builder.AppendInt32(pExpression->ChildCountOrMinusOneIfNotYetComputed);
+						builder.AppendInt32((int)pExpression->ExprType);
 
 						m_ExpressionCache[pExpression->AssignedID] = std::move(pExpression);
 
@@ -858,6 +866,7 @@ namespace Sysprogs
 							builder.AppendString(it->second->Value);
 							builder.AppendInt32(0);
 							builder.AppendInt32(it->second->ChildCountOrMinusOneIfNotYetComputed);
+							builder.AppendInt32((int)it->second->ExprType);
 
 							(*childCount)++;
 						}

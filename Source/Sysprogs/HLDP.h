@@ -84,6 +84,17 @@ namespace Sysprogs
 		unsigned PayloadSize;
 	};
 
+	enum class ExpressionType
+	{
+		Invalid,
+		Property,
+		Variable,
+		Cache,
+		CacheEntry,
+		Env,
+		EnvVar,
+		Target,
+	};
 	/*
 			Typical handshake sequence:
 			1. Null-terminated HDLPBanner + scHandshake
