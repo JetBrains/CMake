@@ -117,11 +117,11 @@ namespace Sysprogs
 	class HLDPServer::SimpleExpression : public ExpressionBase
 	{
 	public:
-		SimpleExpression(const std::string &name, const std::string &type, const std::string &value)
+		SimpleExpression(const std::string &name, const std::string &type, ExpressionType exprType, const std::string &value)
 		{
 			Name = name;
 			Type = type;
-			ExprType = ExpressionType::Property;
+			ExprType = exprType;
 			Value = value;
 		}
 	};
@@ -247,7 +247,7 @@ namespace Sysprogs
 			for (const std::string &key : properties.GetKeys())
 			{
 				cmValue value = properties.GetPropertyValue(key);
-				result.push_back(std::make_unique<SimpleExpression>(key, "(property entry)", value ? *value : empty));
+				result.push_back(std::make_unique<SimpleExpression>(key, "(property entry)", ExpressionType::Property, value ? *value : empty));
 			}
 			return std::move(result);
 		}
@@ -277,13 +277,44 @@ namespace Sysprogs
 		virtual std::vector<std::unique_ptr<ExpressionBase>> CreateChildren() override
 		{
 			std::vector<std::unique_ptr<ExpressionBase>> result;
-			if (cacheIsUsed()) { // cache is used
+			if (cacheIsUsed()) {
 				std::string empty;
 				for (const auto &key : m_file->GetState()->GetCacheEntryKeys()) {
 					cmValue value = m_file->GetState()->GetCacheEntryValue(key);
 					if (value) {
 						result.push_back(std::make_unique<CacheEntryExpression>(key, value->c_str()));
 					}
+				}
+			}
+			return std::move(result);
+		}
+	};
+
+	class HLDPServer::TargetsExpression : public ExpressionBase
+	{
+	private:
+		std::set<std::string> m_TargetNames;
+		const RAIIScope &m_Scope;
+
+	public:
+		TargetsExpression(const RAIIScope &scope, std::set<std::string> pTargetNames) : m_Scope(scope), m_TargetNames(pTargetNames)
+		{
+			Type = "(targets)";
+			ExprType = ExpressionType::Targets;
+			Name = "targets";
+			Value = "";
+			ChildCountOrMinusOneIfNotYetComputed = m_TargetNames.size();
+		}
+
+		virtual std::vector<std::unique_ptr<ExpressionBase>> CreateChildren() override
+		{
+			std::vector<std::unique_ptr<ExpressionBase>> result;
+			for (const auto targetName : m_TargetNames)
+			{
+				cmTarget *target = m_Scope.Makefile->FindTargetToUse(targetName, false);
+				if (target)
+				{
+					result.push_back(std::make_unique<TargetExpression>(target));
 				}
 			}
 			return std::move(result);
@@ -495,6 +526,10 @@ namespace Sysprogs
 
 	void HLDPServer::OnTargetCreated(cmStateEnums::TargetType type, const std::string &targetName)
 	{
+		if (!m_CallStack.empty()) // some auxiliary targets are created with empty stack, ignore them since we cannot evaluate them
+		{
+			m_TargetNames.insert(targetName);
+		}
 		auto id = m_BreakpointManager.TryLocateEnabledDomainSpecificBreakpoint([&](BasicBreakpointManager::DomainSpecificBreakpointExtension *pBp) {
 			switch (static_cast<DomainSpecificBreakpoint *>(pBp)->Type)
 			{
@@ -949,6 +984,10 @@ namespace Sysprogs
 
 		if (text == "CMakeCache.txt") { // synthetic variable holding all CMakeCache entries
 			return std::make_unique<CacheTxtExpression>(scope.Makefile);
+		}
+
+		if (text == ".targets") {
+			return std::make_unique<TargetsExpression>(scope, m_TargetNames);
 		}
 
 		cmValue pValue = cmDefinitions::Get(text, scope.Position->Vars, scope.Position->Root);
