@@ -94,6 +94,7 @@ namespace Sysprogs
 		class EnvironmentVariableExpression;
 		class TargetExpression;
 		class CacheTxtExpression;
+		class TargetsExpression;
 		class TargetPropertyListExpression;
 		class EnvironmentMetaExpression;
 
@@ -116,6 +117,8 @@ namespace Sysprogs
 		//Set of variables that ever had watches created. This should reduce the delay when checking each variable access.
 		std::set<BasicBreakpointManager::CaseInsensitiveObjectName> m_WatchedVariables;
 
+		// Holds names of all created targets
+		std::set<std::string> m_TargetNames;
 		enum
 		{
 			kNoScope = -1,
