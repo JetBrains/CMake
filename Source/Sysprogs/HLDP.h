@@ -93,6 +93,7 @@ namespace Sysprogs
 		CacheEntry,
 		Env,
 		EnvVar,
+		Targets,
 		Target,
 	};
 	/*
