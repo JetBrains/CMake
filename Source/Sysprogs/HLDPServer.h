@@ -1,7 +1,9 @@
 #pragma once
 #include <map>
+#include <unordered_map>
 #include <string>
 #include <vector>
+#include <utility>
 #include "BasicBreakpointManager.h"
 
 class cmCommand;
@@ -63,6 +65,7 @@ namespace Sysprogs
 		void SendErrorPacket(std::string details);
 
 		void ReportStopAndServeDebugRequests(TargetStopReason stopReason, unsigned intParam, const std::string &stringParam, bool *pSkipThisInstruction);
+		bool IsIgnoreVarWrite(const std::string &variable);
 
 	private:
 		class ExpressionBase
@@ -116,6 +119,9 @@ namespace Sysprogs
 
 		//Set of variables that ever had watches created. This should reduce the delay when checking each variable access.
 		std::set<BasicBreakpointManager::CaseInsensitiveObjectName> m_WatchedVariables;
+
+		// file path -> var name -> var value and the line of the last write access
+		std::unordered_map<std::string, std::unordered_map<std::string, std::pair<std::string, int>>> m_VarWrites;
 
 		// Holds names of all created targets
 		std::set<std::string> m_TargetNames;
