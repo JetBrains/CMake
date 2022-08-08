@@ -60,6 +60,9 @@ namespace Sysprogs
 
 		scDebugMessage, // Payload: Stream:int32, text:string. Stream is implementation-specific.
 		scTargetExited, // Payload: exit code
+
+		csVarsIn,  // frameId:int32, one-based fromLine:int32 (inclusive), one-based toLine:int32 (exclusive)
+		scVarsOut, // array of [var name:string, var value:string, line]
 	};
 
 	enum class TargetStopReason

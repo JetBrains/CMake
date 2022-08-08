@@ -501,10 +501,19 @@ namespace Sysprogs
 
 	void HLDPServer::OnVariableAccessed(const std::string &variable, int access_type, const char *newValue, const cmMakefile *mf)
 	{
+		bool isRead = access_type == cmVariableWatch::VARIABLE_READ_ACCESS || access_type == cmVariableWatch::UNKNOWN_VARIABLE_READ_ACCESS;
+
+		if (!isRead && newValue)
+		{
+			if (m_CallStack.size() > 0 && !IsIgnoreVarWrite(variable))
+			{
+				const cmListFileContext &topFile = mf->GetBacktrace().Top();
+				m_VarWrites[topFile.FilePath][variable] = std::make_pair(std::string(newValue), topFile.Line);
+			}
+		}
+
 		if (m_WatchedVariables.find(variable) == m_WatchedVariables.end())
 			return;
-
-		bool isRead = access_type == cmVariableWatch::VARIABLE_READ_ACCESS || access_type == cmVariableWatch::UNKNOWN_VARIABLE_READ_ACCESS;
 
 		auto id = m_BreakpointManager.TryLocateEnabledDomainSpecificBreakpoint([&](BasicBreakpointManager::DomainSpecificBreakpointExtension *pBp) {
 			switch (static_cast<DomainSpecificBreakpoint *>(pBp)->Type)
@@ -522,6 +531,32 @@ namespace Sysprogs
 
 		if (id)
 			ReportStopAndServeDebugRequests(TargetStopReason::Breakpoint, id, "", nullptr);
+	}
+
+	bool HLDPServer::IsIgnoreVarWrite(const std::string &variable)
+	{
+		if (variable == "ARGC") {
+			return true;
+		}
+		if (variable == "ARGN") {
+			return true;
+		}
+		if (variable == "CMAKE_CURRENT_FUNCTION") {
+			return true;
+		}
+		if (variable == "CMAKE_CURRENT_FUNCTION_LIST_DIR") {
+			return true;
+		}
+		if (variable == "CMAKE_CURRENT_FUNCTION_LIST_FILE") {
+			return true;
+		}
+		if (variable == "CMAKE_CURRENT_FUNCTION_LIST_LINE") {
+			return true;
+		}
+		if (variable.rfind("ARGV", 0) == 0) {
+			return true;
+		}
+		return false;
 	}
 
 	void HLDPServer::OnTargetCreated(cmStateEnums::TargetType type, const std::string &targetName)
@@ -931,6 +966,40 @@ namespace Sysprogs
 						SendErrorPacket(error);
 				}
 				break;
+			case HLDPPacketType::csVarsIn:
+			{
+				int fromLine = 0;
+				int toLine = 0;
+
+				if (!reader.ReadInt32(&ID) || !reader.ReadInt32(&fromLine) || !reader.ReadInt32(&toLine))
+				{
+					SendErrorPacket("Invalid expression request");
+					continue;
+				}
+				RAIIScope *frame = 0 <= ID && ID < m_CallStack.size() ? m_CallStack[ID] : nullptr;
+				if (!frame)
+				{
+					SendErrorPacket("Invalid frame ID");
+				}
+				else
+				{
+					std::unordered_map<std::string, std::pair<std::string, int>> fileMap = m_VarWrites[frame->SourceFile];
+					auto varCount = builder.AppendDelayedInt32();
+					for (auto& it: fileMap) {
+						auto varName = it.first;
+						auto varValueAndLine = it.second;
+						int line = varValueAndLine.second;
+						if (fromLine <= line && line < toLine)
+						{
+							builder.AppendString(varName);
+							builder.AppendString(varValueAndLine.first);
+							builder.AppendInt32(line);
+							(*varCount)++;
+						}
+					}
+					SendReply(HLDPPacketType::scVarsOut, builder);
+				}
+			} break;
 			default:
 				if (requestType > HLDPPacketType::BeforeFirstBreakpointRelatedCommand && requestType < HLDPPacketType::AfterLastBreakpointRelatedCommand)
 				{
