@@ -383,8 +383,9 @@ namespace Sysprogs
 			for (auto it : commands) {
 				m_VarWriteCommands.insert(it);
 			}
-			// exclude project as it writes a lot of internal variables
+			// exclude commands setting internal variables which are most likely irrelevant to the user
 			m_VarWriteCommands.erase("project");
+			m_VarWriteCommands.erase("include");
 			m_VarWriteCommandsInitialized = true;
 		}
 
