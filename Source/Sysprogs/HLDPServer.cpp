@@ -514,22 +514,54 @@ namespace Sysprogs
 	{
 		bool isRead = access_type == cmVariableWatch::VARIABLE_READ_ACCESS || access_type == cmVariableWatch::UNKNOWN_VARIABLE_READ_ACCESS;
 
-		if (!isRead)
+		if (!isRead && !IsIgnoreVarWrite(variable))
 		{
 			const cmListFileContext &topFile = mf->GetBacktrace().Top();
-			if (newValue)
+			std::string filePath = topFile.FilePath;
+			std::string const& funcName = m_CallStack.size() > 0 ? m_CallStack[m_CallStack.size()-1]->Function.OriginalName() : "";
+			int line = topFile.Line;
+			auto lineIter = m_VarLines[filePath].find(variable);
+			if (lineIter != m_VarLines[filePath].end())
 			{
-				if (m_CallStack.size() > 0 && !IsIgnoreVarWrite(variable))
+				// variable was previously written in current file, clear the previous write
+				int prevWriteLine = lineIter->second;
 				{
-					std::string const& funcName = m_CallStack[m_CallStack.size()-1]->Function.OriginalName();
-					if (m_VarWriteCommands.find(funcName) != m_VarWriteCommands.end()) {
-						m_VarWrites[topFile.FilePath][variable] = std::make_pair(std::string(newValue), topFile.Line);
+					auto varsAtPrevLine = m_VarValues[filePath].equal_range(prevWriteLine);
+					auto it = varsAtPrevLine.first;
+					for (; it != varsAtPrevLine.second; ++it)
+					{
+						if (it->second.first == variable)
+						{
+							m_VarValues[filePath].erase(it);
+							break;
+						}
 					}
+				}
+				m_VarLines[filePath].erase(variable);
+			}
+
+			// Erase previous writes on the current line.
+			if (funcName == "if" && variable.rfind("CMAKE_MATCH_", 0) == 0) {
+				// The if command sets several match variables, CMAKE_MATCH_0 is the first of them.
+				// Only when CMAKE_MATCH_0 is written we clear what was written on the current line before,
+				// subsequent writes on the line are appended.
+				if (variable == "CMAKE_MATCH_0")
+				{
+					m_VarValues[filePath].erase(line);
 				}
 			}
 			else
 			{
-				m_VarWrites[topFile.FilePath].erase(variable);
+				m_VarValues[filePath].erase(line);
+			}
+
+			if (newValue)
+			{
+				if (m_VarWriteCommands.find(funcName) != m_VarWriteCommands.end())
+				{
+					m_VarLines[filePath][variable] = line;
+					m_VarValues[filePath].insert(std::make_pair(line, std::make_pair(variable, std::string(newValue))));
+				}
 			}
 		}
 
@@ -1004,18 +1036,22 @@ namespace Sysprogs
 				}
 				else
 				{
-					std::unordered_map<std::string, std::pair<std::string, int>> fileMap = m_VarWrites[frame->SourceFile];
+					std::multimap<int, std::pair<std::string, std::string>> varValues = m_VarValues[frame->SourceFile];
 					auto varCount = builder.AppendDelayedInt32();
-					for (auto& it: fileMap) {
-						auto varName = it.first;
-						auto varValueAndLine = it.second;
-						int line = varValueAndLine.second;
+					for (auto& it: varValues) {
+						auto line = it.first;
 						if (fromLine <= line && line < toLine)
 						{
-							builder.AppendString(varName);
-							builder.AppendString(varValueAndLine.first);
-							builder.AppendInt32(line);
-							(*varCount)++;
+							auto rangeIter = varValues.equal_range(line);
+							auto it2 = rangeIter.first;
+							for (; it2 != rangeIter.second; ++it2) {
+								auto varName = it2->second.first;
+								auto varValue = it2->second.second;
+								builder.AppendString(varName);
+								builder.AppendString(varValue);
+								builder.AppendInt32(line);
+								(*varCount)++;
+							}
 						}
 					}
 					SendReply(HLDPPacketType::scVarsOut, builder);
