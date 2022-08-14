@@ -123,6 +123,12 @@ namespace Sysprogs
 		// file path -> var name -> var value and the line of the last write access
 		std::unordered_map<std::string, std::unordered_map<std::string, std::pair<std::string, int>>> m_VarWrites;
 
+		// Set of command names for which we want to track variable writes.
+		// Includes only builtin commands to filter out writes to parameters
+		// of user-defined functions.
+		std::unordered_set<std::string> m_VarWriteCommands;
+		bool m_VarWriteCommandsInitialized = false;
+
 		// Holds names of all created targets
 		std::set<std::string> m_TargetNames;
 		enum
