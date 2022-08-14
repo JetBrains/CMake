@@ -513,15 +513,22 @@ namespace Sysprogs
 	{
 		bool isRead = access_type == cmVariableWatch::VARIABLE_READ_ACCESS || access_type == cmVariableWatch::UNKNOWN_VARIABLE_READ_ACCESS;
 
-		if (!isRead && newValue)
+		if (!isRead)
 		{
-			if (m_CallStack.size() > 0 && !IsIgnoreVarWrite(variable))
+			const cmListFileContext &topFile = mf->GetBacktrace().Top();
+			if (newValue)
 			{
-				std::string const& funcName = m_CallStack[m_CallStack.size()-1]->Function.OriginalName();
-				if (m_VarWriteCommands.find(funcName) != m_VarWriteCommands.end()) {
-					const cmListFileContext &topFile = mf->GetBacktrace().Top();
-					m_VarWrites[topFile.FilePath][variable] = std::make_pair(std::string(newValue), topFile.Line);
+				if (m_CallStack.size() > 0 && !IsIgnoreVarWrite(variable))
+				{
+					std::string const& funcName = m_CallStack[m_CallStack.size()-1]->Function.OriginalName();
+					if (m_VarWriteCommands.find(funcName) != m_VarWriteCommands.end()) {
+						m_VarWrites[topFile.FilePath][variable] = std::make_pair(std::string(newValue), topFile.Line);
+					}
 				}
+			}
+			else
+			{
+				m_VarWrites[topFile.FilePath].erase(variable);
 			}
 		}
 
