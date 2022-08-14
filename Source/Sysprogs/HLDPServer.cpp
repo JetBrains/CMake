@@ -378,6 +378,16 @@ namespace Sysprogs
 		if (m_Detached)
 			return nullptr;
 
+		if (!m_VarWriteCommandsInitialized) {
+			std::vector<std::string> commands = pMakefile->GetState()->GetCommandNames();
+			for (auto it : commands) {
+				m_VarWriteCommands.insert(it);
+			}
+			// exclude project as it writes a lot of internal variables
+			m_VarWriteCommands.erase("project");
+			m_VarWriteCommandsInitialized = true;
+		}
+
 		std::unique_ptr<RAIIScope> pScope(new RAIIScope(this, pMakefile, function));
 		struct
 		{
@@ -507,8 +517,11 @@ namespace Sysprogs
 		{
 			if (m_CallStack.size() > 0 && !IsIgnoreVarWrite(variable))
 			{
-				const cmListFileContext &topFile = mf->GetBacktrace().Top();
-				m_VarWrites[topFile.FilePath][variable] = std::make_pair(std::string(newValue), topFile.Line);
+				std::string const& funcName = m_CallStack[m_CallStack.size()-1]->Function.OriginalName();
+				if (m_VarWriteCommands.find(funcName) != m_VarWriteCommands.end()) {
+					const cmListFileContext &topFile = mf->GetBacktrace().Top();
+					m_VarWrites[topFile.FilePath][variable] = std::make_pair(std::string(newValue), topFile.Line);
+				}
 			}
 		}
 
