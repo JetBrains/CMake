@@ -120,8 +120,10 @@ namespace Sysprogs
 		//Set of variables that ever had watches created. This should reduce the delay when checking each variable access.
 		std::set<BasicBreakpointManager::CaseInsensitiveObjectName> m_WatchedVariables;
 
-		// file path -> var name -> var value and the line of the last write access
-		std::unordered_map<std::string, std::unordered_map<std::string, std::pair<std::string, int>>> m_VarWrites;
+		// file -> var name -> line where the var was last written
+		std::unordered_map<std::string, std::map<std::string, int>> m_VarLines;
+		// file -> line -> (var name, var value)+
+		std::unordered_map<std::string, std::multimap<int, std::pair<std::string, std::string>>> m_VarValues;
 
 		// Set of command names for which we want to track variable writes.
 		// Includes only builtin commands to filter out writes to parameters
