@@ -2,6 +2,7 @@
 
 #ifdef _WIN32
 #include <WinSock2.h>
+#include <ws2tcpip.h>
 typedef int socklen_t;
 
 bool isDisconnected() {
@@ -38,6 +39,13 @@ public:
 			AF_INET,
 		};
 		addr.sin_port = htons(tcpPort);
+
+		std::string localHost = "127.0.0.1";
+		if (inet_pton(AF_INET, localHost.c_str(), &addr.sin_addr) != 1) {
+			m_Socket = -1;
+			cmSystemTools::Error("Failed to get localhost address.");
+			return;
+		}
 
 		m_Socket = socket(AF_INET, SOCK_STREAM, 0);
 
