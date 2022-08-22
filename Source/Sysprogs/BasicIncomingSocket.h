@@ -3,11 +3,19 @@
 #ifdef _WIN32
 #include <WinSock2.h>
 typedef int socklen_t;
+
+bool isDisconnected() {
+	return WSAGetLastError() == WSAECONNRESET;
+}
 #else
 #include <sys/socket.h>
 #include <netinet/ip.h>
 typedef int SOCKET;
 static void closesocket(SOCKET socket) { close(socket); }
+
+bool isDisconnected() {
+	return errno == ECONNRESET;
+}
 #endif
 
 /*
@@ -20,8 +28,12 @@ private:
 	SOCKET m_Socket, m_AcceptedSocket;
 
 public:
+	bool m_Disconnected;
+
 	BasicIncomingSocket(int tcpPort) : m_Socket(0), m_AcceptedSocket(0)
 	{
+		m_Disconnected = false;
+
 		sockaddr_in addr = {
 			AF_INET,
 		};
@@ -86,6 +98,13 @@ public:
 		if (m_AcceptedSocket <= 0)
 			return false;
 		int done = send(m_AcceptedSocket, (const char *)pData, size, 0);
+		if (done == -1) {
+			if (isDisconnected()) {
+				m_Disconnected = true;
+				cmSystemTools::Error("Socket disconnected.");
+				cmSystemTools::SetFatalErrorOccurred();
+			}
+		}
 		return done == size;
 	}
 
