@@ -842,6 +842,10 @@ namespace Sysprogs
 
 		for (;;)
 		{
+			if (m_pSocket->m_Disconnected)
+			{
+				break;
+			}
 			builder.Reset();
 
 			RequestReader reader;
