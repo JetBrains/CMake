@@ -11,6 +11,7 @@ bool isDisconnected() {
 #else
 #include <sys/socket.h>
 #include <netinet/ip.h>
+#include <arpa/inet.h>
 typedef int SOCKET;
 static void closesocket(SOCKET socket) { close(socket); }
 
