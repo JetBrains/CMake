@@ -184,7 +184,7 @@ namespace Sysprogs
 			if (!fromEnvList)
 				Name = "ENV{" + name + "}";
 			else
-				Name = "[" + name + "]";
+				Name = name;
 
 			Type = "(Environment Variable)";
 			ExprType = ExpressionType::EnvVar;
