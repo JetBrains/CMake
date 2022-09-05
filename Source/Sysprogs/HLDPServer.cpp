@@ -233,6 +233,7 @@ namespace Sysprogs
 		{
 			Type = "(CMake target)";
 			ExprType = ExpressionType::Target;
+			ExprSubType = pTarget->GetType();
 			Name = pTarget->GetName();
 			Value = "target";
 			ChildCountOrMinusOneIfNotYetComputed = -1;
@@ -940,6 +941,7 @@ namespace Sysprogs
 						builder.AppendInt32(0);
 						builder.AppendInt32(pExpression->ChildCountOrMinusOneIfNotYetComputed);
 						builder.AppendInt32((int)pExpression->ExprType);
+						builder.AppendInt32(pExpression->ExprSubType);
 
 						m_ExpressionCache[pExpression->AssignedID] = std::move(pExpression);
 
@@ -993,6 +995,7 @@ namespace Sysprogs
 							builder.AppendInt32(0);
 							builder.AppendInt32(it->second->ChildCountOrMinusOneIfNotYetComputed);
 							builder.AppendInt32((int)it->second->ExprType);
+							builder.AppendInt32(it->second->ExprSubType);
 
 							(*childCount)++;
 						}
