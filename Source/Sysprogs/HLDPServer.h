@@ -74,6 +74,7 @@ namespace Sysprogs
 			UniqueExpressionID AssignedID = -1;
 			std::string Name, Value, Type;
 			ExpressionType ExprType;
+			int ExprSubType = 0;
 			int ChildCountOrMinusOneIfNotYetComputed = 0;
 
 		public:
