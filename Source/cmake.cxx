@@ -1165,6 +1165,13 @@ void cmake::SetArgs(std::vector<std::string> const& args)
                        state->SetDebugServerPort(atoi(value.c_str()));
                        return true;
                      } },
+
+    CommandArgument{ "--debug-token-path", CommandArgument::Values::One,
+                     [](std::string const& value, cmake* state) -> bool {
+                       state->SetDebugServerTokenPath(value);
+                       return true;
+                     } },
+
     CommandArgument{
       "--debug-find", CommandArgument::Values::Zero,
       [](std::string const&, cmake* state) -> bool {
@@ -4406,7 +4413,7 @@ bool cmake::GetDeprecatedWarningsAsErrors() const
 void cmake::StartDebugServerIfEnabled()
 {
   if (!m_pDebugServer && DebugServerPort) {
-    m_pDebugServer.reset(new Sysprogs::HLDPServer(DebugServerPort));
+    m_pDebugServer.reset(new Sysprogs::HLDPServer(DebugServerPort, DebugServerTokenPath));
     if (!m_pDebugServer->WaitForClient()) {
       cmSystemTools::Error("Failed to start debugging server. Aborting...");
       cmSystemTools::SetFatalErrorOccurred();
