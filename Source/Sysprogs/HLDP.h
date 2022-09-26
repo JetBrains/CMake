@@ -19,7 +19,7 @@ namespace Sysprogs
 		Invalid,
 		scError,	 // Payload: error:string
 		scHandshake, // Payload: version:int32, subexpression delimiter:string
-		csHandshake, // No payload
+		csHandshake, // Payload: debug token:string
 
 		scTargetStopped, // Payload: TargetStopReason:int32, IntArg:int32, StringArg:string, [array of BacktraceEntry]
 		scTargetRunning, // No payload
