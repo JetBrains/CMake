@@ -22,7 +22,7 @@ namespace Sysprogs
 	class HLDPServer
 	{
 	public:
-		HLDPServer(int tcpPort);
+		HLDPServer(int tcpPort, std::string debugTokenPath);
 		~HLDPServer();
 
 		typedef int UniqueScopeID, UniqueExpressionID;
@@ -109,6 +109,7 @@ namespace Sysprogs
 
 	private:
 		BasicIncomingSocket *m_pSocket;
+		std::string m_DebugToken;
 		bool m_BreakInPending = false;
 		bool m_EventsReported = false;
 		bool m_Detached = false;
