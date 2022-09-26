@@ -642,6 +642,7 @@ public:
   void WatchUnusedCli(const std::string& var);
   unsigned GetDebugServerPort() const { return DebugServerPort; }
   void SetDebugServerPort(unsigned port) { DebugServerPort = port; }
+  void SetDebugServerTokenPath(std::string const& debugTokenPath) { DebugServerTokenPath = debugTokenPath; }
   
   cmState* GetState() const { return this->State.get(); }
   void SetCurrentSnapshot(cmStateSnapshot const& snapshot)
@@ -695,6 +696,7 @@ protected:
   std::string GeneratorPlatform;
   std::string GeneratorToolset;
   unsigned DebugServerPort = 0;
+  std::string DebugServerTokenPath;
 #ifndef CMAKE_BOOTSTRAP
   std::unique_ptr<Sysprogs::HLDPServer> m_pDebugServer;
 #endif
