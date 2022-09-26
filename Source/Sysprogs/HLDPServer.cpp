@@ -340,7 +340,15 @@ namespace Sysprogs
 		DomainSpecificBreakpoint(const std::string &stringArg, int intArg) : StringArg(stringArg), Type((CMakeDomainSpecificBreakpointType)intArg) {}
 	};
 
-	HLDPServer::HLDPServer(int tcpPort) : m_BreakInPending(true) { m_pSocket = new BasicIncomingSocket(tcpPort); }
+	HLDPServer::HLDPServer(int tcpPort, std::string debugTokenPath) : m_BreakInPending(true) {
+		std::ifstream token(debugTokenPath);
+		if (token) {
+			std::stringstream buffer;
+			buffer << token.rdbuf();
+			m_DebugToken = buffer.str();
+		}
+		m_pSocket = new BasicIncomingSocket(tcpPort);
+	}
 
 	HLDPServer::~HLDPServer()
 	{
@@ -370,6 +378,16 @@ namespace Sysprogs
 			return false;
 		}
 
+		std::string debugToken;
+		if (!reader.ReadString(&debugToken)) {
+			cmSystemTools::Error("Failed to complete HLDP handshake: debug token is missing.");
+			return false;
+		}
+
+		if (debugToken != m_DebugToken) {
+			cmSystemTools::Error("Failed to complete HLDP handshake: wrong debug token.");
+			return false;
+		}
 		return true;
 	}
 
