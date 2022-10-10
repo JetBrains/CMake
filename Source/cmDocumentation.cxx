@@ -379,9 +379,6 @@ bool cmDocumentation::CheckOptions(int argc, const char* const* argv,
                (strcmp(argv[i], "/V") == 0)) {
       help.HelpType = cmDocumentation::Version;
       i += int(get_opt_argument(i + 1, help.Filename));
-    } else if (strcmp(argv[i], "--help-dbg") == 0) {
-      help.HelpType = cmDocumentation::None;
-      return true;
     }
     if (help.HelpType != None) {
       // This is a help option.  See if there is a file name given.
