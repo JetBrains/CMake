@@ -85,3 +85,7 @@ endif()
 if(CMake_VERSION_IS_DIRTY)
   string(APPEND CMake_VERSION "-dirty")
 endif()
+
+if(CMake_VERSION_ADD_DEBUGGER_SUFFIX)
+  set(CMake_VERSION ${CMake_VERSION}-dbg)
+endif()
