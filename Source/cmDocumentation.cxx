@@ -76,9 +76,14 @@ cmDocumentation::cmDocumentation()
 bool cmDocumentation::PrintVersion(std::ostream& os)
 {
   /* clang-format off */
-  os <<
-    this->GetNameString() <<
-    " version " << cmVersion::GetCMakeVersion() << "\n"
+  os << this->GetNameString() << " version " << cmVersion::GetCMakeVersion();
+
+  if (cmVersion::GetCMakeVersionExtra()[0] != '\0') {
+    os << ' ' << cmVersion::GetCMakeVersionExtra();
+  }
+
+  os << "\n" <<
+    "debugging support enabled" << "\n" <<
     "\n"
     "CMake suite maintained and supported by Kitware (kitware.com/cmake).\n"
     ;
