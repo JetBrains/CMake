@@ -25,3 +25,8 @@ const char* cmVersion::GetCMakeVersion()
 {
   return CMake_VERSION;
 }
+
+const char* cmVersion::GetCMakeVersionExtra()
+{
+  return CMake_VERSION_EXTRA;
+}
