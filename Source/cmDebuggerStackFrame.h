@@ -35,6 +35,7 @@ public:
     return this->Function;
   }
   std::vector<cmListFileArgument> const& GetArguments() const noexcept;
+  cmListFileFunction const& GetFunction() { return this->Function; }
 };
 
 } // namespace cmDebugger
