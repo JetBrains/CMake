@@ -91,7 +91,8 @@ public:
   static std::shared_ptr<cmDebuggerVariables> Create(
     std::shared_ptr<cmDebuggerVariablesManager> const& variablesManager,
     std::string const& name, bool supportsVariableType,
-    std::shared_ptr<cmDebuggerStackFrame> const& frame);
+    std::shared_ptr<cmDebuggerStackFrame> const& frame,
+    std::shared_ptr<cmDebuggerStackFrame> const& parentFrame);
 
   static std::shared_ptr<cmDebuggerVariables> CreateIfAny(
     std::shared_ptr<cmDebuggerVariablesManager> const& variablesManager,
