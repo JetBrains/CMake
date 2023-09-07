@@ -375,7 +375,8 @@ std::shared_ptr<cmDebuggerVariables> cmDebuggerVariablesHelper::CreateIfAny(
 std::shared_ptr<cmDebuggerVariables> cmDebuggerVariablesHelper::Create(
   std::shared_ptr<cmDebuggerVariablesManager> const& variablesManager,
   std::string const& name, bool supportsVariableType,
-  std::shared_ptr<cmDebuggerStackFrame> const& frame)
+  std::shared_ptr<cmDebuggerStackFrame> const& frame,
+  std::shared_ptr<cmDebuggerStackFrame> const& parentFrame)
 {
   auto variables = std::make_shared<cmDebuggerVariables>(
     variablesManager, name, supportsVariableType, [=]() {
@@ -396,6 +397,32 @@ std::shared_ptr<cmDebuggerVariables> cmDebuggerVariablesHelper::Create(
     });
   locals->SetValue(std::to_string(closureKeys.size()));
   variables->AddSubVariables(locals);
+
+
+  if (parentFrame != nullptr) {
+    cmMakefile* parentMakefile = parentFrame->GetMakefile();
+    const cmStateSnapshot& parentSnapshot = parentMakefile->GetStateSnapshot();
+    if (parentSnapshot.IsValid() && parentSnapshot.GetType() == cmStateEnums::MacroCallType) {
+      auto macroArgs = parentFrame->GetFunction().Arguments();
+      auto macroArgsVariables = std::make_shared<cmDebuggerVariables>(
+        variablesManager, "__MacroArgs__", supportsVariableType, [=]() {
+          std::vector<std::string> expandedArgs;
+          parentMakefile->ExpandArguments(macroArgs, expandedArgs);
+          unsigned int i = 0;
+          char argvName[60]; // like in cmMacroCommand.cxx - cmMacroHelperCommand::operator()
+          std::vector<cmDebuggerVariableEntry> ret;
+          for (auto const& arg : expandedArgs) {
+            snprintf(argvName, sizeof(argvName), "ARGV%u", i);
+            ret.emplace_back(argvName, arg);
+            i++;
+          }
+          return ret;
+        }
+      );
+      macroArgsVariables->SetValue(std::to_string(macroArgs.size()));
+      variables->AddSubVariables(macroArgsVariables);
+    }
+  }
 
   std::function<bool(std::string const&)> isDirectory =
     [](std::string const& key) {
