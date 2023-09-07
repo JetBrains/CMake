@@ -32,6 +32,7 @@ public:
   {
     return this->Function;
   }
+  cmListFileFunction const& GetFunction() { return this->Function; }
 };
 
 } // namespace cmDebugger
