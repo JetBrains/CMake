@@ -28,6 +28,7 @@ public:
   std::string const& GetFileName() const noexcept { return this->FileName; }
   int64_t GetLine() const noexcept;
   cmMakefile* GetMakefile() const noexcept { return this->Makefile; }
+  cmListFileFunction const& GetFunction() { return this->Function; }
 };
 
 } // namespace cmDebugger
