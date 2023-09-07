@@ -422,7 +422,7 @@ static bool testCreateFromStackFrame()
                                cmStateEnums::CacheEntryType::STRING);
 
   auto locals = cmDebugger::cmDebuggerVariablesHelper::Create(
-    variablesManager, "Locals", true, frame);
+    variablesManager, "Locals", true, frame, {});
 
   dap::array<dap::Variable> variables =
     variablesManager->HandleVariablesRequest(
