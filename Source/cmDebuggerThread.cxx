@@ -83,10 +83,19 @@ dap::ScopesResponse cmDebuggerThread::GetScopesResponse(
     return dap::ScopesResponse();
   }
 
+  std::shared_ptr<cmDebuggerStackFrame> parentFrame = {};
+  for (int i = static_cast<int>(Frames.size()) - 1; i >= 0; --i) {
+    if (Frames[i]->GetId() == frameId) {
+      if (i > 0) {
+        parentFrame = Frames[i - 1];
+      }
+      break;
+    }
+  }
   std::shared_ptr<cmDebuggerStackFrame> frame = it2->second;
   std::shared_ptr<cmDebuggerVariables> localVariables =
     cmDebuggerVariablesHelper::Create(VariablesManager, "Locals",
-                                      supportsVariableType, frame);
+                                      supportsVariableType, frame, parentFrame);
 
   FrameVariables[frameId].emplace_back(localVariables);
 
