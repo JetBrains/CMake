@@ -271,6 +271,18 @@ cmDebuggerAdapter::cmDebuggerAdapter(
       std::shared_ptr<cmDebuggerStackFrame> frame =
         DefaultThread->GetStackFrame(request.frameId.value());
 
+      const dap::string& expr = request.expression;
+      if (expr.rfind("$ENV{", 0) == 0 && expr.at(expr.length() - 1) == '}') {
+        auto envEntryPrefix = expr.substr(5, expr.length() - 5 - 1) + "=";
+        for (const auto &kv : cmSystemTools::GetEnvironmentVariables()) {
+          if (kv.rfind(envEntryPrefix, 0) == 0) {
+            response.type = "string";
+            response.result = kv.substr(envEntryPrefix.length());
+            return response;
+          }
+        }
+      }
+
       auto var = frame->GetMakefile()->GetDefinition(request.expression);
       if (var) {
         response.type = "string";
