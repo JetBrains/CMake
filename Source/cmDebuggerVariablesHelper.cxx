@@ -424,6 +424,22 @@ std::shared_ptr<cmDebuggerVariables> cmDebuggerVariablesHelper::Create(
     }
   }
 
+  auto env = cmSystemTools::GetEnvironmentVariables();
+  auto envVariables = std::make_shared<cmDebuggerVariables>(
+    variablesManager, "ENV", supportsVariableType, [=]() {
+      std::vector<cmDebuggerVariableEntry> ret;
+      for (const auto &kv : env) {
+        int idx = kv.find('=');
+        if (idx != std::string::npos) {
+          ret.emplace_back(kv.substr(0, idx), kv.substr(idx + 1));
+        }
+      }
+      return ret;
+    }
+  );
+  envVariables->SetValue(std::to_string(env.size()));
+  variables->AddSubVariables(envVariables);
+
   std::function<bool(std::string const&)> isDirectory =
     [](std::string const& key) {
       size_t pos1 = key.rfind("_DIR");
