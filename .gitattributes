@@ -19,6 +19,7 @@
 
 bootstrap        eol=lf
 configure        eol=lf
+cygport          eol=lf
 *.[1-9]          eol=lf
 *.bash           eol=lf
 *.sh             eol=lf
