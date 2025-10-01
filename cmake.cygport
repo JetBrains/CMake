@@ -27,7 +27,7 @@ src_compile() {
     | tar xvzf - --strip=1
 
   ./Configure Cygwin-x86_64 no-shared --prefix="$openssl_install_dir"
-  cygmake install_sw -j1 VERBOSE=1 || error "openssl build failed"
+  cygmake install_sw VERBOSE=1 || error "openssl build failed"
 
   cd "$B"
   export CC CXX
