@@ -31,7 +31,7 @@ src_compile() {
 
   cd "$B"
   export CC CXX
-  "$S/bootstrap" --prefix=/ -- \
+  "$S/bootstrap" --prefix=/ --parallel=16 -- \
     -DCMAKE_BUILD_TYPE=Release \
     -DBUILD_TESTING=NO \
     -DBUILD_CursesDialog=NO \
