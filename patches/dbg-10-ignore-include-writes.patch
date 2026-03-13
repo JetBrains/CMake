@@ -1,0 +1,24 @@
+From 58a1c6e8fcaa82b75ec48d22b2700a2b3f6179af Mon Sep 17 00:00:00 2001
+From: Dmitry Neverov <dmitry.neverov@jetbrains.com>
+Date: Sun, 14 Aug 2022 10:21:30 +0200
+Subject: [PATCH] [dbg] ignore vars written by include command
+
+
+diff --git a/Source/Sysprogs/HLDPServer.cpp b/Source/Sysprogs/HLDPServer.cpp
+index b555d81698..becfb192aa 100644
+--- a/Source/Sysprogs/HLDPServer.cpp
++++ b/Source/Sysprogs/HLDPServer.cpp
+@@ -382,8 +382,9 @@ namespace Sysprogs
+ 			for (auto it : commands) {
+ 				m_VarWriteCommands.insert(it);
+ 			}
+-			// exclude project as it writes a lot of internal variables
++			// exclude commands setting internal variables which are most likely irrelevant to the user
+ 			m_VarWriteCommands.erase("project");
++			m_VarWriteCommands.erase("include");
+ 			m_VarWriteCommandsInitialized = true;
+ 		}
+ 
+-- 
+2.50.1 (Apple Git-155)
+

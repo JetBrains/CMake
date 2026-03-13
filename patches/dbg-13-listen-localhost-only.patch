@@ -1,0 +1,36 @@
+From 745bdd32599a527e5a06dbcf89bd8d8c3debc827 Mon Sep 17 00:00:00 2001
+From: "Dmitry.Neverov" <dmitry.neverov@jetbrains.com>
+Date: Mon, 22 Aug 2022 14:34:12 +0200
+Subject: [PATCH] [dbg] listen on localhost to prevent connection from other
+ machines
+
+
+diff --git a/Source/Sysprogs/BasicIncomingSocket.h b/Source/Sysprogs/BasicIncomingSocket.h
+index 090a4606f9..bec1d6e5ff 100644
+--- a/Source/Sysprogs/BasicIncomingSocket.h
++++ b/Source/Sysprogs/BasicIncomingSocket.h
+@@ -2,6 +2,7 @@
+ 
+ #ifdef _WIN32
+ #include <WinSock2.h>
++#include <ws2tcpip.h>
+ typedef int socklen_t;
+ 
+ bool isDisconnected() {
+@@ -39,6 +40,13 @@ public:
+ 		};
+ 		addr.sin_port = htons(tcpPort);
+ 
++		std::string localHost = "127.0.0.1";
++		if (inet_pton(AF_INET, localHost.c_str(), &addr.sin_addr) != 1) {
++			m_Socket = -1;
++			cmSystemTools::Error("Failed to get localhost address.");
++			return;
++		}
++
+ 		m_Socket = socket(AF_INET, SOCK_STREAM, 0);
+ 
+ 		if (m_Socket < 0)
+-- 
+2.50.1 (Apple Git-155)
+

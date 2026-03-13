@@ -1,0 +1,128 @@
+From 1ca27d208b4681b92e5a3a919117d0f59348efb2 Mon Sep 17 00:00:00 2001
+From: "Dmitry.Neverov" <dmitry.neverov@jetbrains.com>
+Date: Mon, 25 Jul 2022 18:18:34 +0200
+Subject: [PATCH] [dbg] add numeric expression type be able to show expression
+ differently
+
+
+diff --git a/Source/Sysprogs/HLDP.h b/Source/Sysprogs/HLDP.h
+index 85314346dc..20107f6470 100644
+--- a/Source/Sysprogs/HLDP.h
++++ b/Source/Sysprogs/HLDP.h
+@@ -84,6 +84,17 @@ namespace Sysprogs
+ 		unsigned PayloadSize;
+ 	};
+ 
++	enum class ExpressionType
++	{
++		Invalid,
++		Property,
++		Variable,
++		Cache,
++		CacheEntry,
++		Env,
++		EnvVar,
++		Target,
++	};
+ 	/*
+ 			Typical handshake sequence:
+ 			1. Null-terminated HDLPBanner + scHandshake
+diff --git a/Source/Sysprogs/HLDPServer.cpp b/Source/Sysprogs/HLDPServer.cpp
+index ceae002dcb..7fb483193b 100644
+--- a/Source/Sysprogs/HLDPServer.cpp
++++ b/Source/Sysprogs/HLDPServer.cpp
+@@ -120,6 +120,7 @@ namespace Sysprogs
+ 		{
+ 			Name = name;
+ 			Type = type;
++			ExprType = ExpressionType::Property;
+ 			Value = value;
+ 		}
+ 	};
+@@ -134,6 +135,7 @@ namespace Sysprogs
+ 		{
+ 			Name = name;
+ 			Type = "(CMake Expression)";
++			ExprType = ExpressionType::Variable;
+ 			Value = pValue;
+ 		}
+ 
+@@ -160,6 +162,7 @@ namespace Sysprogs
+ 		{
+ 			Name = name;
+ 			Type = "(CMake Expression)";
++			ExprType = ExpressionType::CacheEntry;
+ 			Value = pValue;
+ 		}
+ 
+@@ -183,6 +186,7 @@ namespace Sysprogs
+ 				Name = "[" + name + "]";
+ 
+ 			Type = "(Environment Variable)";
++			ExprType = ExpressionType::EnvVar;
+ 			Value = value;
+ 		}
+ 
+@@ -200,6 +204,7 @@ namespace Sysprogs
+ 		{
+ 			Name = "$ENV";
+ 			Type = "(CMake Environment)";
++			ExprType = ExpressionType::Env;
+ 			Value = "<...>";
+ 			ChildCountOrMinusOneIfNotYetComputed = -1;
+ 		}
+@@ -227,6 +232,7 @@ namespace Sysprogs
+ 		TargetExpression(cmTarget *pTarget) : m_pTarget(pTarget)
+ 		{
+ 			Type = "(CMake target)";
++			ExprType = ExpressionType::Target;
+ 			Name = pTarget->GetName();
+ 			Value = "target";
+ 			ChildCountOrMinusOneIfNotYetComputed = -1;
+@@ -261,6 +267,7 @@ namespace Sysprogs
+ 		CacheTxtExpression(cmMakefile *pFile) : m_file(pFile)
+ 		{
+ 			Type = "(CMakeCache.txt)";
++			ExprType = ExpressionType::Cache;
+ 			Name = "CMakeCache.txt";
+ 			Value = "";
+ 			ChildCountOrMinusOneIfNotYetComputed = cacheIsUsed() ? -1 : 0;
+@@ -805,6 +812,7 @@ namespace Sysprogs
+ 						builder.AppendString(pExpression->Value);
+ 						builder.AppendInt32(0);
+ 						builder.AppendInt32(pExpression->ChildCountOrMinusOneIfNotYetComputed);
++						builder.AppendInt32((int)pExpression->ExprType);
+ 
+ 						m_ExpressionCache[pExpression->AssignedID] = std::move(pExpression);
+ 
+@@ -857,6 +865,7 @@ namespace Sysprogs
+ 							builder.AppendString(it->second->Value);
+ 							builder.AppendInt32(0);
+ 							builder.AppendInt32(it->second->ChildCountOrMinusOneIfNotYetComputed);
++							builder.AppendInt32((int)it->second->ExprType);
+ 
+ 							(*childCount)++;
+ 						}
+diff --git a/Source/Sysprogs/HLDPServer.h b/Source/Sysprogs/HLDPServer.h
+index 74b9a15f7a..6094fba758 100644
+--- a/Source/Sysprogs/HLDPServer.h
++++ b/Source/Sysprogs/HLDPServer.h
+@@ -15,6 +15,7 @@ namespace Sysprogs
+ 	class RequestReader;
+ 	enum class HLDPPacketType;
+ 	enum class TargetStopReason;
++	enum class ExpressionType;
+ 
+ 	class HLDPServer
+ 	{
+@@ -69,6 +70,7 @@ namespace Sysprogs
+ 		public:
+ 			UniqueExpressionID AssignedID = -1;
+ 			std::string Name, Value, Type;
++			ExpressionType ExprType;
+ 			int ChildCountOrMinusOneIfNotYetComputed = 0;
+ 
+ 		public:
+-- 
+2.50.1 (Apple Git-155)
+

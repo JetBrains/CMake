@@ -1,0 +1,90 @@
+From 90b6ea698a4b60ada12574ed91f3d927b43d30e8 Mon Sep 17 00:00:00 2001
+From: Felix Popov <felix.popov@jetbrains.com>
+Date: Wed, 26 Oct 2022 15:30:11 +0200
+Subject: [PATCH] [dbg] add info to --version output
+
+* build number in case of teamcity build
+* "debugging support enabled"
+
+diff --git a/Source/CMakeVersion.cmake b/Source/CMakeVersion.cmake
+index c02ba17274..c45b087809 100644
+--- a/Source/CMakeVersion.cmake
++++ b/Source/CMakeVersion.cmake
+@@ -86,6 +86,3 @@ if(CMake_VERSION_IS_DIRTY)
+   string(APPEND CMake_VERSION "-dirty")
+ endif()
+ 
+-if(CMake_VERSION_ADD_DEBUGGER_SUFFIX)
+-  set(CMake_VERSION ${CMake_VERSION}-dbg)
+-endif()
+diff --git a/Source/cmDocumentation.cxx b/Source/cmDocumentation.cxx
+index 2cd57b6918..4cf7c39dda 100644
+--- a/Source/cmDocumentation.cxx
++++ b/Source/cmDocumentation.cxx
+@@ -76,9 +76,14 @@ cmDocumentation::cmDocumentation()
+ bool cmDocumentation::PrintVersion(std::ostream& os)
+ {
+   /* clang-format off */
+-  os <<
+-    this->GetNameString() <<
+-    " version " << cmVersion::GetCMakeVersion() << "\n"
++  os << this->GetNameString() << " version " << cmVersion::GetCMakeVersion();
++
++  if (cmVersion::GetCMakeVersionExtra()[0] != '\0') {
++    os << ' ' << cmVersion::GetCMakeVersionExtra();
++  }
++
++  os << "\n" <<
++    "debugging support enabled" << "\n" <<
+     "\n"
+     "CMake suite maintained and supported by Kitware (kitware.com/cmake).\n"
+     ;
+diff --git a/Source/cmVersion.cxx b/Source/cmVersion.cxx
+index 06c3688577..6e3851f2ff 100644
+--- a/Source/cmVersion.cxx
++++ b/Source/cmVersion.cxx
+@@ -25,3 +25,8 @@ char const* cmVersion::GetCMakeVersion()
+ {
+   return CMake_VERSION;
+ }
++
++char const* cmVersion::GetCMakeVersionExtra()
++{
++  return CMake_VERSION_EXTRA;
++}
+diff --git a/Source/cmVersion.h b/Source/cmVersion.h
+index c3d5b0cd4c..35196db744 100644
+--- a/Source/cmVersion.h
++++ b/Source/cmVersion.h
+@@ -20,6 +20,7 @@ public:
+   static unsigned int GetPatchVersion();
+   static unsigned int GetTweakVersion();
+   static char const* GetCMakeVersion();
++  static char const* GetCMakeVersionExtra();
+ };
+ 
+ /* Encode with room for up to 1000 minor releases between major releases
+diff --git a/Source/cmVersionConfig.h.in b/Source/cmVersionConfig.h.in
+index 7e30b485ff..32f0a2a2aa 100644
+--- a/Source/cmVersionConfig.h.in
++++ b/Source/cmVersionConfig.h.in
+@@ -8,3 +8,4 @@
+ #define CMake_VERSION_SUFFIX "@CMake_VERSION_SUFFIX@"
+ #define CMake_VERSION_IS_DIRTY @CMake_VERSION_IS_DIRTY@
+ #define CMake_VERSION "@CMake_VERSION@"
++#define CMake_VERSION_EXTRA "@CMake_VERSION_EXTRA@"
+diff --git a/bootstrap b/bootstrap
+index aea87b9911..521aefa98c 100755
+--- a/bootstrap
++++ b/bootstrap
+@@ -1662,6 +1662,7 @@ fi
+ cmake_report cmVersionConfig.h${_tmp} "#define CMake_VERSION_MAJOR ${cmake_version_major}"
+ cmake_report cmVersionConfig.h${_tmp} "#define CMake_VERSION_MINOR ${cmake_version_minor}"
+ cmake_report cmVersionConfig.h${_tmp} "#define CMake_VERSION_PATCH ${cmake_version_patch}"
++cmake_report cmVersionConfig.h${_tmp} "#define CMake_VERSION_EXTRA \"bootstrap\""
+ cmake_report cmVersionConfig.h${_tmp} "#define CMake_VERSION \"${cmake_version}\""
+ cmake_report cmConfigure.h${_tmp} "#define CMAKE_BOOTSTRAP_SOURCE_DIR \"${CMAKE_BOOTSTRAP_SOURCE_DIR}\""
+ cmake_report cmConfigure.h${_tmp} "#define CMAKE_BOOTSTRAP_BINARY_DIR \"${CMAKE_BOOTSTRAP_BINARY_DIR}\""
+-- 
+2.50.1 (Apple Git-155)
+

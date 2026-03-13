@@ -1,0 +1,36 @@
+From 5dd2ee5cf6e23091d1a7822f19cbd0404aabeb7e Mon Sep 17 00:00:00 2001
+From: "Dmitry.Neverov" <dmitry.neverov@jetbrains.com>
+Date: Mon, 10 Oct 2022 14:43:57 +0200
+Subject: [PATCH] [dbg] signal that cmake supports debugging via version suffix
+
+Instead of a help flag.
+
+diff --git a/Source/CMakeVersion.cmake b/Source/CMakeVersion.cmake
+index ad53e27e69..c02ba17274 100644
+--- a/Source/CMakeVersion.cmake
++++ b/Source/CMakeVersion.cmake
+@@ -85,3 +85,7 @@ endif()
+ if(CMake_VERSION_IS_DIRTY)
+   string(APPEND CMake_VERSION "-dirty")
+ endif()
++
++if(CMake_VERSION_ADD_DEBUGGER_SUFFIX)
++  set(CMake_VERSION ${CMake_VERSION}-dbg)
++endif()
+diff --git a/Source/cmDocumentation.cxx b/Source/cmDocumentation.cxx
+index 1f0920feea..2cd57b6918 100644
+--- a/Source/cmDocumentation.cxx
++++ b/Source/cmDocumentation.cxx
+@@ -379,9 +379,6 @@ bool cmDocumentation::CheckOptions(int argc, char const* const* argv,
+                (strcmp(argv[i], "/V") == 0)) {
+       help.HelpType = cmDocumentation::Version;
+       i += int(get_opt_argument(i + 1, help.Filename));
+-    } else if (strcmp(argv[i], "--help-dbg") == 0) {
+-      help.HelpType = cmDocumentation::None;
+-      return true;
+     }
+     if (help.HelpType != None) {
+       // This is a help option.  See if there is a file name given.
+-- 
+2.50.1 (Apple Git-155)
+

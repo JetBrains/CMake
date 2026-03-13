@@ -1,0 +1,23 @@
+From 9639a92973b5bbdeaa4222735d9a11ede97ceed8 Mon Sep 17 00:00:00 2001
+From: "Dmitry.Neverov" <dmitry.neverov@jetbrains.com>
+Date: Mon, 22 Aug 2022 16:38:13 +0200
+Subject: [PATCH] [dbg] add help option to check if cmake supports debug
+
+
+diff --git a/Source/cmDocumentation.cxx b/Source/cmDocumentation.cxx
+index 2cd57b6918..1f0920feea 100644
+--- a/Source/cmDocumentation.cxx
++++ b/Source/cmDocumentation.cxx
+@@ -379,6 +379,9 @@ bool cmDocumentation::CheckOptions(int argc, char const* const* argv,
+                (strcmp(argv[i], "/V") == 0)) {
+       help.HelpType = cmDocumentation::Version;
+       i += int(get_opt_argument(i + 1, help.Filename));
++    } else if (strcmp(argv[i], "--help-dbg") == 0) {
++      help.HelpType = cmDocumentation::None;
++      return true;
+     }
+     if (help.HelpType != None) {
+       // This is a help option.  See if there is a file name given.
+-- 
+2.50.1 (Apple Git-155)
+

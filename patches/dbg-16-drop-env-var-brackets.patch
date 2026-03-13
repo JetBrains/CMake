@@ -1,0 +1,22 @@
+From 5d38825b748ed53186bdce403fb9bee6a3beb28a Mon Sep 17 00:00:00 2001
+From: "Dmitry.Neverov" <dmitry.neverov@jetbrains.com>
+Date: Mon, 5 Sep 2022 14:03:13 +0200
+Subject: [PATCH] [dbg] drop brackets around env var names
+
+
+diff --git a/Source/Sysprogs/HLDPServer.cpp b/Source/Sysprogs/HLDPServer.cpp
+index c74dae59fd..dec326af90 100644
+--- a/Source/Sysprogs/HLDPServer.cpp
++++ b/Source/Sysprogs/HLDPServer.cpp
+@@ -183,7 +183,7 @@ namespace Sysprogs
+ 			if (!fromEnvList)
+ 				Name = "ENV{" + name + "}";
+ 			else
+-				Name = "[" + name + "]";
++				Name = name;
+ 
+ 			Type = "(Environment Variable)";
+ 			ExprType = ExpressionType::EnvVar;
+-- 
+2.50.1 (Apple Git-155)
+

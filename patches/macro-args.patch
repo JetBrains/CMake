@@ -1,0 +1,121 @@
+From 146f6a61ddb8dbf48783d8d374a8dd72a43a9b05 Mon Sep 17 00:00:00 2001
+From: "Dmitry.Neverov" <dmitry.neverov@jetbrains.com>
+Date: Thu, 7 Sep 2023 16:20:10 +0200
+Subject: [PATCH] Report macro arguments in a dedicated __MacroArgs__ variable
+
+Out of box cmake doesn't report them : https://gitlab.kitware.com/cmake/cmake/-/issues/25098.
+
+diff --git a/Source/cmDebuggerStackFrame.h b/Source/cmDebuggerStackFrame.h
+index 2ac4fca72d..91c0182f4e 100644
+--- a/Source/cmDebuggerStackFrame.h
++++ b/Source/cmDebuggerStackFrame.h
+@@ -35,6 +35,7 @@ public:
+     return this->Function;
+   }
+   std::vector<cmListFileArgument> const& GetArguments() const noexcept;
++  cmListFileFunction const& GetFunction() { return this->Function; }
+ };
+ 
+ } // namespace cmDebugger
+diff --git a/Source/cmDebuggerThread.cxx b/Source/cmDebuggerThread.cxx
+index 2f682ed813..1ae1f966e7 100644
+--- a/Source/cmDebuggerThread.cxx
++++ b/Source/cmDebuggerThread.cxx
+@@ -84,10 +84,19 @@ dap::ScopesResponse cmDebuggerThread::GetScopesResponse(
+     return dap::ScopesResponse();
+   }
+ 
++  std::shared_ptr<cmDebuggerStackFrame> parentFrame = {};
++  for (int i = static_cast<int>(Frames.size()) - 1; i >= 0; --i) {
++    if (Frames[i]->GetId() == frameId) {
++      if (i > 0) {
++        parentFrame = Frames[i - 1];
++      }
++      break;
++    }
++  }
+   std::shared_ptr<cmDebuggerStackFrame> frame = it2->second;
+   std::shared_ptr<cmDebuggerVariables> localVariables =
+     cmDebuggerVariablesHelper::Create(VariablesManager, "Locals",
+-                                      supportsVariableType, frame);
++                                      supportsVariableType, frame, parentFrame);
+ 
+   FrameVariables[frameId].emplace_back(localVariables);
+ 
+diff --git a/Source/cmDebuggerVariablesHelper.cxx b/Source/cmDebuggerVariablesHelper.cxx
+index efe5c896d9..d7b8cf3fe7 100644
+--- a/Source/cmDebuggerVariablesHelper.cxx
++++ b/Source/cmDebuggerVariablesHelper.cxx
+@@ -373,7 +373,8 @@ std::shared_ptr<cmDebuggerVariables> cmDebuggerVariablesHelper::CreateIfAny(
+ std::shared_ptr<cmDebuggerVariables> cmDebuggerVariablesHelper::Create(
+   std::shared_ptr<cmDebuggerVariablesManager> const& variablesManager,
+   std::string const& name, bool supportsVariableType,
+-  std::shared_ptr<cmDebuggerStackFrame> const& frame)
++  std::shared_ptr<cmDebuggerStackFrame> const& frame,
++  std::shared_ptr<cmDebuggerStackFrame> const& parentFrame)
+ {
+   auto variables = std::make_shared<cmDebuggerVariables>(
+     variablesManager, name, supportsVariableType, [=]() {
+@@ -395,6 +396,32 @@ std::shared_ptr<cmDebuggerVariables> cmDebuggerVariablesHelper::Create(
+   locals->SetValue(std::to_string(closureKeys.size()));
+   variables->AddSubVariables(locals);
+ 
++
++  if (parentFrame != nullptr) {
++    cmMakefile* parentMakefile = parentFrame->GetMakefile();
++    const cmStateSnapshot& parentSnapshot = parentMakefile->GetStateSnapshot();
++    if (parentSnapshot.IsValid() && parentSnapshot.GetType() == cmStateEnums::MacroCallType) {
++      auto macroArgs = parentFrame->GetFunction().Arguments();
++      auto macroArgsVariables = std::make_shared<cmDebuggerVariables>(
++        variablesManager, "__MacroArgs__", supportsVariableType, [=]() {
++          std::vector<std::string> expandedArgs;
++          parentMakefile->ExpandArguments(macroArgs, expandedArgs);
++          unsigned int i = 0;
++          char argvName[60]; // like in cmMacroCommand.cxx - cmMacroHelperCommand::operator()
++          std::vector<cmDebuggerVariableEntry> ret;
++          for (auto const& arg : expandedArgs) {
++            snprintf(argvName, sizeof(argvName), "ARGV%u", i);
++            ret.emplace_back(argvName, arg);
++            i++;
++          }
++          return ret;
++        }
++      );
++      macroArgsVariables->SetValue(std::to_string(macroArgs.size()));
++      variables->AddSubVariables(macroArgsVariables);
++    }
++  }
++
+   std::function<bool(std::string const&)> isDirectory =
+     [](std::string const& key) {
+       size_t pos1 = key.rfind("_DIR");
+diff --git a/Source/cmDebuggerVariablesHelper.h b/Source/cmDebuggerVariablesHelper.h
+index 0e0fdb4b1b..37a604806c 100644
+--- a/Source/cmDebuggerVariablesHelper.h
++++ b/Source/cmDebuggerVariablesHelper.h
+@@ -91,7 +91,8 @@ public:
+   static std::shared_ptr<cmDebuggerVariables> Create(
+     std::shared_ptr<cmDebuggerVariablesManager> const& variablesManager,
+     std::string const& name, bool supportsVariableType,
+-    std::shared_ptr<cmDebuggerStackFrame> const& frame);
++    std::shared_ptr<cmDebuggerStackFrame> const& frame,
++    std::shared_ptr<cmDebuggerStackFrame> const& parentFrame);
+ 
+   static std::shared_ptr<cmDebuggerVariables> CreateIfAny(
+     std::shared_ptr<cmDebuggerVariablesManager> const& variablesManager,
+diff --git a/Tests/CMakeLib/testDebuggerVariablesHelper.cxx b/Tests/CMakeLib/testDebuggerVariablesHelper.cxx
+index 7359231cb0..bdfc87139b 100644
+--- a/Tests/CMakeLib/testDebuggerVariablesHelper.cxx
++++ b/Tests/CMakeLib/testDebuggerVariablesHelper.cxx
+@@ -421,7 +421,7 @@ static bool testCreateFromStackFrame()
+                                cmStateEnums::CacheEntryType::STRING);
+ 
+   auto locals = cmDebugger::cmDebuggerVariablesHelper::Create(
+-    variablesManager, "Locals", true, frame);
++    variablesManager, "Locals", true, frame, {});
+ 
+   dap::array<dap::Variable> variables =
+     variablesManager->HandleVariablesRequest(
+-- 
+2.50.1 (Apple Git-155)
+

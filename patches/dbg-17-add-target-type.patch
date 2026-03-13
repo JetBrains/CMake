@@ -1,0 +1,49 @@
+From 266f9f09e87b433586a504fcff0a89e239dc37db Mon Sep 17 00:00:00 2001
+From: "Dmitry.Neverov" <dmitry.neverov@jetbrains.com>
+Date: Mon, 5 Sep 2022 14:56:38 +0200
+Subject: [PATCH] [dbg] add target type
+
+
+diff --git a/Source/Sysprogs/HLDPServer.cpp b/Source/Sysprogs/HLDPServer.cpp
+index dec326af90..a2822bcf26 100644
+--- a/Source/Sysprogs/HLDPServer.cpp
++++ b/Source/Sysprogs/HLDPServer.cpp
+@@ -233,6 +233,7 @@ namespace Sysprogs
+ 		{
+ 			Type = "(CMake target)";
+ 			ExprType = ExpressionType::Target;
++			ExprSubType = pTarget->GetType();
+ 			Name = pTarget->GetName();
+ 			Value = "target";
+ 			ChildCountOrMinusOneIfNotYetComputed = -1;
+@@ -940,6 +941,7 @@ namespace Sysprogs
+ 						builder.AppendInt32(0);
+ 						builder.AppendInt32(pExpression->ChildCountOrMinusOneIfNotYetComputed);
+ 						builder.AppendInt32((int)pExpression->ExprType);
++						builder.AppendInt32(pExpression->ExprSubType);
+ 
+ 						m_ExpressionCache[pExpression->AssignedID] = std::move(pExpression);
+ 
+@@ -993,6 +995,7 @@ namespace Sysprogs
+ 							builder.AppendInt32(0);
+ 							builder.AppendInt32(it->second->ChildCountOrMinusOneIfNotYetComputed);
+ 							builder.AppendInt32((int)it->second->ExprType);
++							builder.AppendInt32(it->second->ExprSubType);
+ 
+ 							(*childCount)++;
+ 						}
+diff --git a/Source/Sysprogs/HLDPServer.h b/Source/Sysprogs/HLDPServer.h
+index e8e115b20f..6e9df48fec 100644
+--- a/Source/Sysprogs/HLDPServer.h
++++ b/Source/Sysprogs/HLDPServer.h
+@@ -74,6 +74,7 @@ namespace Sysprogs
+ 			UniqueExpressionID AssignedID = -1;
+ 			std::string Name, Value, Type;
+ 			ExpressionType ExprType;
++			int ExprSubType = 0;
+ 			int ChildCountOrMinusOneIfNotYetComputed = 0;
+ 
+ 		public:
+-- 
+2.50.1 (Apple Git-155)
+

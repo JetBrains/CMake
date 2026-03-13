@@ -1,0 +1,21 @@
+From 7ac264d8252feafa684a1616a679257b2613469f Mon Sep 17 00:00:00 2001
+From: Dmitry Neverov <dmitry.neverov@jetbrains.com>
+Date: Sun, 28 Aug 2022 20:40:37 +0200
+Subject: [PATCH] [dbg] add header for inet_pton
+
+
+diff --git a/Source/Sysprogs/BasicIncomingSocket.h b/Source/Sysprogs/BasicIncomingSocket.h
+index bec1d6e5ff..650d89407f 100644
+--- a/Source/Sysprogs/BasicIncomingSocket.h
++++ b/Source/Sysprogs/BasicIncomingSocket.h
+@@ -11,6 +11,7 @@ bool isDisconnected() {
+ #else
+ #include <sys/socket.h>
+ #include <netinet/ip.h>
++#include <arpa/inet.h>
+ typedef int SOCKET;
+ static void closesocket(SOCKET socket) { close(socket); }
+ 
+-- 
+2.50.1 (Apple Git-155)
+

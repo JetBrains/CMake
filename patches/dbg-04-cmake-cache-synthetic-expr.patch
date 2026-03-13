@@ -1,0 +1,80 @@
+From aa5e538c040d72f2f24e6b460c0b442072061a6b Mon Sep 17 00:00:00 2001
+From: "Dmitry.Neverov" <dmitry.neverov@jetbrains.com>
+Date: Mon, 25 Jul 2022 17:10:40 +0200
+Subject: [PATCH] [dbg] add synthetic expression holding all CMakeCache.txt
+ entries
+
+
+diff --git a/Source/Sysprogs/HLDPServer.cpp b/Source/Sysprogs/HLDPServer.cpp
+index df9c065f30..ceae002dcb 100644
+--- a/Source/Sysprogs/HLDPServer.cpp
++++ b/Source/Sysprogs/HLDPServer.cpp
+@@ -245,6 +245,42 @@ namespace Sysprogs
+ 			return std::move(result);
+ 		}
+ 	};
++
++	// Expression for the whole CMakeCache.txt with cache entries as children.
++	// Has no children if cache is not used.
++	class HLDPServer::CacheTxtExpression : public ExpressionBase
++	{
++	private:
++		cmMakefile *m_file;
++
++		bool cacheIsUsed() {
++			return m_file && m_file->GetState()->GetCacheMajorVersion();
++		}
++
++	public:
++		CacheTxtExpression(cmMakefile *pFile) : m_file(pFile)
++		{
++			Type = "(CMakeCache.txt)";
++			Name = "CMakeCache.txt";
++			Value = "";
++			ChildCountOrMinusOneIfNotYetComputed = cacheIsUsed() ? -1 : 0;
++		}
++
++		virtual std::vector<std::unique_ptr<ExpressionBase>> CreateChildren() override
++		{
++			std::vector<std::unique_ptr<ExpressionBase>> result;
++			if (cacheIsUsed()) { // cache is used
++				std::string empty;
++				for (const auto &key : m_file->GetState()->GetCacheEntryKeys()) {
++					cmValue value = m_file->GetState()->GetCacheEntryValue(key);
++					if (value) {
++						result.push_back(std::make_unique<CacheEntryExpression>(key, value->c_str()));
++					}
++				}
++			}
++			return std::move(result);
++		}
++	};
+ #pragma endregion
+ 
+ 	enum class CMakeDomainSpecificBreakpointType
+@@ -901,6 +937,10 @@ namespace Sysprogs
+ 				return nullptr;
+ 		}
+ 
++		if (text == "CMakeCache.txt") { // synthetic variable holding all CMakeCache entries
++			return std::make_unique<CacheTxtExpression>(scope.Makefile);
++		}
++
+ 		cmValue pValue = cmDefinitions::Get(text, scope.Position->Vars, scope.Position->Root);
+ 		if (pValue)
+ 			return std::make_unique<VariableExpression>(scope, text, pValue->c_str());
+diff --git a/Source/Sysprogs/HLDPServer.h b/Source/Sysprogs/HLDPServer.h
+index a5729e0f09..74b9a15f7a 100644
+--- a/Source/Sysprogs/HLDPServer.h
++++ b/Source/Sysprogs/HLDPServer.h
+@@ -91,6 +91,7 @@ namespace Sysprogs
+ 		class CacheEntryExpression;
+ 		class EnvironmentVariableExpression;
+ 		class TargetExpression;
++		class CacheTxtExpression;
+ 		class TargetPropertyListExpression;
+ 		class EnvironmentMetaExpression;
+ 
+-- 
+2.50.1 (Apple Git-155)
+

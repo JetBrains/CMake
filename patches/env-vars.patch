@@ -1,0 +1,63 @@
+From f69c3b3331dd7a110c139e2a4ce387f8e0c68554 Mon Sep 17 00:00:00 2001
+From: "Dmitry.Neverov" <dmitry.neverov@jetbrains.com>
+Date: Fri, 8 Sep 2023 10:42:14 +0200
+Subject: [PATCH] Support environment variables
+
+Report them in a dedicated var in a stack. Update evaluator
+to handle env var reference expressions.
+
+https://gitlab.kitware.com/cmake/cmake/-/issues/25089
+
+diff --git a/Source/cmDebuggerAdapter.cxx b/Source/cmDebuggerAdapter.cxx
+index 7cf9efe45b..540414f4e4 100644
+--- a/Source/cmDebuggerAdapter.cxx
++++ b/Source/cmDebuggerAdapter.cxx
+@@ -270,6 +270,18 @@ cmDebuggerAdapter::cmDebuggerAdapter(
+       std::shared_ptr<cmDebuggerStackFrame> frame =
+         DefaultThread->GetStackFrame(request.frameId.value());
+ 
++      const dap::string& expr = request.expression;
++      if (expr.rfind("$ENV{", 0) == 0 && expr.at(expr.length() - 1) == '}') {
++        auto envEntryPrefix = expr.substr(5, expr.length() - 5 - 1) + "=";
++        for (const auto &kv : cmSystemTools::GetEnvironmentVariables()) {
++          if (kv.rfind(envEntryPrefix, 0) == 0) {
++            response.type = "string";
++            response.result = kv.substr(envEntryPrefix.length());
++            return response;
++          }
++        }
++      }
++
+       auto var = frame->GetMakefile()->GetDefinition(request.expression);
+       if (var) {
+         response.type = "string";
+diff --git a/Source/cmDebuggerVariablesHelper.cxx b/Source/cmDebuggerVariablesHelper.cxx
+index d7b8cf3fe7..0bfa03d4c2 100644
+--- a/Source/cmDebuggerVariablesHelper.cxx
++++ b/Source/cmDebuggerVariablesHelper.cxx
+@@ -422,6 +422,22 @@ std::shared_ptr<cmDebuggerVariables> cmDebuggerVariablesHelper::Create(
+     }
+   }
+ 
++  auto env = cmSystemTools::GetEnvironmentVariables();
++  auto envVariables = std::make_shared<cmDebuggerVariables>(
++    variablesManager, "ENV", supportsVariableType, [=]() {
++      std::vector<cmDebuggerVariableEntry> ret;
++      for (const auto &kv : env) {
++        int idx = kv.find('=');
++        if (idx != std::string::npos) {
++          ret.emplace_back(kv.substr(0, idx), kv.substr(idx + 1));
++        }
++      }
++      return ret;
++    }
++  );
++  envVariables->SetValue(std::to_string(env.size()));
++  variables->AddSubVariables(envVariables);
++
+   std::function<bool(std::string const&)> isDirectory =
+     [](std::string const& key) {
+       size_t pos1 = key.rfind("_DIR");
+-- 
+2.50.1 (Apple Git-155)
+

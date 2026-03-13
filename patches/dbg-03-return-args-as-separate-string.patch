@@ -1,0 +1,32 @@
+From e1dbdb8a7e3350fd15e5296c8f2cf456e78c1041 Mon Sep 17 00:00:00 2001
+From: "Dmitry.Neverov" <dmitry.neverov@jetbrains.com>
+Date: Mon, 25 Jul 2022 15:16:08 +0200
+Subject: [PATCH] [dbg] return arguments as separate string
+
+It is easier to parse and helps work around broken macro
+argument evaluation.
+
+diff --git a/Source/Sysprogs/HLDPServer.cpp b/Source/Sysprogs/HLDPServer.cpp
+index 5bf76bea67..df9c065f30 100644
+--- a/Source/Sysprogs/HLDPServer.cpp
++++ b/Source/Sysprogs/HLDPServer.cpp
+@@ -654,6 +654,16 @@ namespace Sysprogs
+ 			builder.AppendString(args);
+ 			builder.AppendString(pEntry->SourceFile);
+ 			builder.AppendInt32(pEntry->Function.Line());
++
++			auto argCount = builder.AppendDelayedInt32();
++			if (i > 0) {
++				for (const auto &arg : m_CallStack[i - 1]->Function.Arguments())
++				{
++					builder.AppendString(arg.Value);
++					(*argCount)++;
++				}
++			}
++
+ 			(*backtraceEntryCount)++;
+ 		}
+ 
+-- 
+2.50.1 (Apple Git-155)
+

@@ -1,0 +1,22 @@
+From d27ce69b7fc838ff9309a9051c9ed84e40016312 Mon Sep 17 00:00:00 2001
+From: Evgenii Novozhilov <evgenii.novozhilov@jetbrains.com>
+Date: Thu, 2 Oct 2025 15:16:25 +0300
+Subject: [PATCH] cygwin: perform parallel bootstrap
+
+
+diff --git a/cygport b/cygport
+index 89de242602..2c6c99adb9 100644
+--- a/cygport
++++ b/cygport
+@@ -31,7 +31,7 @@ src_compile() {
+ 
+   cd "$B"
+   export CC CXX
+-  "$S/bootstrap" --prefix=/ -- \
++  "$S/bootstrap" --prefix=/ --parallel=16 -- \
+     -DCMAKE_BUILD_TYPE=Release \
+     -DBUILD_TESTING=NO \
+     -DBUILD_CursesDialog=NO \
+-- 
+2.50.1 (Apple Git-155)
+

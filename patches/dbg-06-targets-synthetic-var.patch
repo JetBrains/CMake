@@ -1,0 +1,138 @@
+From 18dd4e86b509accb0a5f25b5c43c52b598f77c26 Mon Sep 17 00:00:00 2001
+From: "Dmitry.Neverov" <dmitry.neverov@jetbrains.com>
+Date: Mon, 1 Aug 2022 10:25:12 +0200
+Subject: [PATCH] [dbg] add targets synthetic var
+
+
+diff --git a/Source/Sysprogs/HLDP.h b/Source/Sysprogs/HLDP.h
+index 20107f6470..b2fb3cd410 100644
+--- a/Source/Sysprogs/HLDP.h
++++ b/Source/Sysprogs/HLDP.h
+@@ -93,6 +93,7 @@ namespace Sysprogs
+ 		CacheEntry,
+ 		Env,
+ 		EnvVar,
++		Targets,
+ 		Target,
+ 	};
+ 	/*
+diff --git a/Source/Sysprogs/HLDPServer.cpp b/Source/Sysprogs/HLDPServer.cpp
+index 7fb483193b..286e15120f 100644
+--- a/Source/Sysprogs/HLDPServer.cpp
++++ b/Source/Sysprogs/HLDPServer.cpp
+@@ -116,11 +116,11 @@ namespace Sysprogs
+ 	class HLDPServer::SimpleExpression : public ExpressionBase
+ 	{
+ 	public:
+-		SimpleExpression(const std::string &name, const std::string &type, const std::string &value)
++		SimpleExpression(const std::string &name, const std::string &type, ExpressionType exprType, const std::string &value)
+ 		{
+ 			Name = name;
+ 			Type = type;
+-			ExprType = ExpressionType::Property;
++			ExprType = exprType;
+ 			Value = value;
+ 		}
+ 	};
+@@ -246,7 +246,7 @@ namespace Sysprogs
+ 			for (const std::string &key : properties.GetKeys())
+ 			{
+ 				cmValue value = properties.GetPropertyValue(key);
+-				result.push_back(std::make_unique<SimpleExpression>(key, "(property entry)", value ? *value : empty));
++				result.push_back(std::make_unique<SimpleExpression>(key, "(property entry)", ExpressionType::Property, value ? *value : empty));
+ 			}
+ 			return std::move(result);
+ 		}
+@@ -276,7 +276,7 @@ namespace Sysprogs
+ 		virtual std::vector<std::unique_ptr<ExpressionBase>> CreateChildren() override
+ 		{
+ 			std::vector<std::unique_ptr<ExpressionBase>> result;
+-			if (cacheIsUsed()) { // cache is used
++			if (cacheIsUsed()) {
+ 				std::string empty;
+ 				for (const auto &key : m_file->GetState()->GetCacheEntryKeys()) {
+ 					cmValue value = m_file->GetState()->GetCacheEntryValue(key);
+@@ -288,6 +288,37 @@ namespace Sysprogs
+ 			return std::move(result);
+ 		}
+ 	};
++
++	class HLDPServer::TargetsExpression : public ExpressionBase
++	{
++	private:
++		std::set<std::string> m_TargetNames;
++		const RAIIScope &m_Scope;
++
++	public:
++		TargetsExpression(const RAIIScope &scope, std::set<std::string> pTargetNames) : m_Scope(scope), m_TargetNames(pTargetNames)
++		{
++			Type = "(targets)";
++			ExprType = ExpressionType::Targets;
++			Name = "targets";
++			Value = "";
++			ChildCountOrMinusOneIfNotYetComputed = m_TargetNames.size();
++		}
++
++		virtual std::vector<std::unique_ptr<ExpressionBase>> CreateChildren() override
++		{
++			std::vector<std::unique_ptr<ExpressionBase>> result;
++			for (const auto targetName : m_TargetNames)
++			{
++				cmTarget *target = m_Scope.Makefile->FindTargetToUse(targetName);
++				if (target)
++				{
++					result.push_back(std::make_unique<TargetExpression>(target));
++				}
++			}
++			return std::move(result);
++		}
++	};
+ #pragma endregion
+ 
+ 	enum class CMakeDomainSpecificBreakpointType
+@@ -494,6 +525,10 @@ namespace Sysprogs
+ 
+ 	void HLDPServer::OnTargetCreated(cmStateEnums::TargetType type, const std::string &targetName)
+ 	{
++		if (!m_CallStack.empty()) // some auxiliary targets are created with empty stack, ignore them since we cannot evaluate them
++		{
++			m_TargetNames.insert(targetName);
++		}
+ 		auto id = m_BreakpointManager.TryLocateEnabledDomainSpecificBreakpoint([&](BasicBreakpointManager::DomainSpecificBreakpointExtension *pBp) {
+ 			switch (static_cast<DomainSpecificBreakpoint *>(pBp)->Type)
+ 			{
+@@ -950,6 +985,10 @@ namespace Sysprogs
+ 			return std::make_unique<CacheTxtExpression>(scope.Makefile);
+ 		}
+ 
++		if (text == ".targets") {
++			return std::make_unique<TargetsExpression>(scope, m_TargetNames);
++		}
++
+ 		cmValue pValue = cmDefinitions::Get(text, scope.Position->Vars, scope.Position->Root);
+ 		if (pValue)
+ 			return std::make_unique<VariableExpression>(scope, text, pValue->c_str());
+diff --git a/Source/Sysprogs/HLDPServer.h b/Source/Sysprogs/HLDPServer.h
+index 6094fba758..f3ad27ed2a 100644
+--- a/Source/Sysprogs/HLDPServer.h
++++ b/Source/Sysprogs/HLDPServer.h
+@@ -94,6 +94,7 @@ namespace Sysprogs
+ 		class EnvironmentVariableExpression;
+ 		class TargetExpression;
+ 		class CacheTxtExpression;
++		class TargetsExpression;
+ 		class TargetPropertyListExpression;
+ 		class EnvironmentMetaExpression;
+ 
+@@ -116,6 +117,8 @@ namespace Sysprogs
+ 		//Set of variables that ever had watches created. This should reduce the delay when checking each variable access.
+ 		std::set<BasicBreakpointManager::CaseInsensitiveObjectName> m_WatchedVariables;
+ 
++		// Holds names of all created targets
++		std::set<std::string> m_TargetNames;
+ 		enum
+ 		{
+ 			kNoScope = -1,
+-- 
+2.50.1 (Apple Git-155)
+

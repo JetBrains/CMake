@@ -1,0 +1,124 @@
+From 9cf44237467c7601fcc0abd610b34097294b41a3 Mon Sep 17 00:00:00 2001
+From: Dmitry Neverov <dmitry.neverov@jetbrains.com>
+Date: Sun, 14 Aug 2022 17:45:53 +0200
+Subject: [PATCH] [dbg] clear previous write on the current line
+
+
+diff --git a/Source/Sysprogs/HLDPServer.cpp b/Source/Sysprogs/HLDPServer.cpp
+index becfb192aa..3f8a0f813d 100644
+--- a/Source/Sysprogs/HLDPServer.cpp
++++ b/Source/Sysprogs/HLDPServer.cpp
+@@ -513,22 +513,54 @@ namespace Sysprogs
+ 	{
+ 		bool isRead = access_type == cmVariableWatch::VARIABLE_READ_ACCESS || access_type == cmVariableWatch::UNKNOWN_VARIABLE_READ_ACCESS;
+ 
+-		if (!isRead)
++		if (!isRead && !IsIgnoreVarWrite(variable))
+ 		{
+ 			const cmListFileContext &topFile = mf->GetBacktrace().Top();
+-			if (newValue)
++			std::string filePath = topFile.FilePath;
++			std::string const& funcName = m_CallStack.size() > 0 ? m_CallStack[m_CallStack.size()-1]->Function.OriginalName() : "";
++			int line = topFile.Line;
++			auto lineIter = m_VarLines[filePath].find(variable);
++			if (lineIter != m_VarLines[filePath].end())
+ 			{
+-				if (m_CallStack.size() > 0 && !IsIgnoreVarWrite(variable))
++				// variable was previously written in current file, clear the previous write
++				int prevWriteLine = lineIter->second;
+ 				{
+-					std::string const& funcName = m_CallStack[m_CallStack.size()-1]->Function.OriginalName();
+-					if (m_VarWriteCommands.find(funcName) != m_VarWriteCommands.end()) {
+-						m_VarWrites[topFile.FilePath][variable] = std::make_pair(std::string(newValue), topFile.Line);
++					auto varsAtPrevLine = m_VarValues[filePath].equal_range(prevWriteLine);
++					auto it = varsAtPrevLine.first;
++					for (; it != varsAtPrevLine.second; ++it)
++					{
++						if (it->second.first == variable)
++						{
++							m_VarValues[filePath].erase(it);
++							break;
++						}
+ 					}
+ 				}
++				m_VarLines[filePath].erase(variable);
++			}
++
++			// Erase previous writes on the current line.
++			if (funcName == "if" && variable.rfind("CMAKE_MATCH_", 0) == 0) {
++				// The if command sets several match variables, CMAKE_MATCH_0 is the first of them.
++				// Only when CMAKE_MATCH_0 is written we clear what was written on the current line before,
++				// subsequent writes on the line are appended.
++				if (variable == "CMAKE_MATCH_0")
++				{
++					m_VarValues[filePath].erase(line);
++				}
+ 			}
+ 			else
+ 			{
+-				m_VarWrites[topFile.FilePath].erase(variable);
++				m_VarValues[filePath].erase(line);
++			}
++
++			if (newValue)
++			{
++				if (m_VarWriteCommands.find(funcName) != m_VarWriteCommands.end())
++				{
++					m_VarLines[filePath][variable] = line;
++					m_VarValues[filePath].insert(std::make_pair(line, std::make_pair(variable, std::string(newValue))));
++				}
+ 			}
+ 		}
+ 
+@@ -1003,18 +1035,22 @@ namespace Sysprogs
+ 				}
+ 				else
+ 				{
+-					std::unordered_map<std::string, std::pair<std::string, int>> fileMap = m_VarWrites[frame->SourceFile];
++					std::multimap<int, std::pair<std::string, std::string>> varValues = m_VarValues[frame->SourceFile];
+ 					auto varCount = builder.AppendDelayedInt32();
+-					for (auto& it: fileMap) {
+-						auto varName = it.first;
+-						auto varValueAndLine = it.second;
+-						int line = varValueAndLine.second;
++					for (auto& it: varValues) {
++						auto line = it.first;
+ 						if (fromLine <= line && line < toLine)
+ 						{
+-							builder.AppendString(varName);
+-							builder.AppendString(varValueAndLine.first);
+-							builder.AppendInt32(line);
+-							(*varCount)++;
++							auto rangeIter = varValues.equal_range(line);
++							auto it2 = rangeIter.first;
++							for (; it2 != rangeIter.second; ++it2) {
++								auto varName = it2->second.first;
++								auto varValue = it2->second.second;
++								builder.AppendString(varName);
++								builder.AppendString(varValue);
++								builder.AppendInt32(line);
++								(*varCount)++;
++							}
+ 						}
+ 					}
+ 					SendReply(HLDPPacketType::scVarsOut, builder);
+diff --git a/Source/Sysprogs/HLDPServer.h b/Source/Sysprogs/HLDPServer.h
+index a7296038e1..e8e115b20f 100644
+--- a/Source/Sysprogs/HLDPServer.h
++++ b/Source/Sysprogs/HLDPServer.h
+@@ -120,8 +120,10 @@ namespace Sysprogs
+ 		//Set of variables that ever had watches created. This should reduce the delay when checking each variable access.
+ 		std::set<BasicBreakpointManager::CaseInsensitiveObjectName> m_WatchedVariables;
+ 
+-		// file path -> var name -> var value and the line of the last write access
+-		std::unordered_map<std::string, std::unordered_map<std::string, std::pair<std::string, int>>> m_VarWrites;
++		// file -> var name -> line where the var was last written
++		std::unordered_map<std::string, std::map<std::string, int>> m_VarLines;
++		// file -> line -> (var name, var value)+
++		std::unordered_map<std::string, std::multimap<int, std::pair<std::string, std::string>>> m_VarValues;
+ 
+ 		// Set of command names for which we want to track variable writes.
+ 		// Includes only builtin commands to filter out writes to parameters
+-- 
+2.50.1 (Apple Git-155)
+

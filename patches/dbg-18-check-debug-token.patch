@@ -1,0 +1,128 @@
+From beaa687df78864898b4affc540e80e7615e473ce Mon Sep 17 00:00:00 2001
+From: "Dmitry.Neverov" <dmitry.neverov@jetbrains.com>
+Date: Mon, 26 Sep 2022 09:55:57 +0200
+Subject: [PATCH] [dbg] check debug token during handshake
+
+
+diff --git a/Source/Sysprogs/HLDP.h b/Source/Sysprogs/HLDP.h
+index a7cb44d564..52ab5e669e 100644
+--- a/Source/Sysprogs/HLDP.h
++++ b/Source/Sysprogs/HLDP.h
+@@ -19,7 +19,7 @@ namespace Sysprogs
+ 		Invalid,
+ 		scError,	 // Payload: error:string
+ 		scHandshake, // Payload: version:int32, subexpression delimiter:string
+-		csHandshake, // No payload
++		csHandshake, // Payload: debug token:string
+ 
+ 		scTargetStopped, // Payload: TargetStopReason:int32, IntArg:int32, StringArg:string, [array of BacktraceEntry]
+ 		scTargetRunning, // No payload
+diff --git a/Source/Sysprogs/HLDPServer.cpp b/Source/Sysprogs/HLDPServer.cpp
+index a2822bcf26..95298362df 100644
+--- a/Source/Sysprogs/HLDPServer.cpp
++++ b/Source/Sysprogs/HLDPServer.cpp
+@@ -339,7 +339,15 @@ namespace Sysprogs
+ 		DomainSpecificBreakpoint(const std::string &stringArg, int intArg) : StringArg(stringArg), Type((CMakeDomainSpecificBreakpointType)intArg) {}
+ 	};
+ 
+-	HLDPServer::HLDPServer(int tcpPort) : m_BreakInPending(true) { m_pSocket = new BasicIncomingSocket(tcpPort); }
++	HLDPServer::HLDPServer(int tcpPort, std::string debugTokenPath) : m_BreakInPending(true) {
++		std::ifstream token(debugTokenPath);
++		if (token) {
++			std::stringstream buffer;
++			buffer << token.rdbuf();
++			m_DebugToken = buffer.str();
++		}
++		m_pSocket = new BasicIncomingSocket(tcpPort);
++	}
+ 
+ 	HLDPServer::~HLDPServer()
+ 	{
+@@ -369,6 +377,16 @@ namespace Sysprogs
+ 			return false;
+ 		}
+ 
++		std::string debugToken;
++		if (!reader.ReadString(&debugToken)) {
++			cmSystemTools::Error("Failed to complete HLDP handshake: debug token is missing.");
++			return false;
++		}
++
++		if (debugToken != m_DebugToken) {
++			cmSystemTools::Error("Failed to complete HLDP handshake: wrong debug token.");
++			return false;
++		}
+ 		return true;
+ 	}
+ 
+diff --git a/Source/Sysprogs/HLDPServer.h b/Source/Sysprogs/HLDPServer.h
+index 6e9df48fec..7cce408afc 100644
+--- a/Source/Sysprogs/HLDPServer.h
++++ b/Source/Sysprogs/HLDPServer.h
+@@ -22,7 +22,7 @@ namespace Sysprogs
+ 	class HLDPServer
+ 	{
+ 	public:
+-		HLDPServer(int tcpPort);
++		HLDPServer(int tcpPort, std::string debugTokenPath);
+ 		~HLDPServer();
+ 
+ 		typedef int UniqueScopeID, UniqueExpressionID;
+@@ -109,6 +109,7 @@ namespace Sysprogs
+ 
+ 	private:
+ 		BasicIncomingSocket *m_pSocket;
++		std::string m_DebugToken;
+ 		bool m_BreakInPending = false;
+ 		bool m_EventsReported = false;
+ 		bool m_Detached = false;
+diff --git a/Source/cmake.cxx b/Source/cmake.cxx
+index 3519acdf11..72b0476cec 100644
+--- a/Source/cmake.cxx
++++ b/Source/cmake.cxx
+@@ -1165,6 +1165,13 @@ void cmake::SetArgs(std::vector<std::string> const& args)
+                        state->SetDebugServerPort(atoi(value.c_str()));
+                        return true;
+                      } },
++
++    CommandArgument{ "--debug-token-path", CommandArgument::Values::One,
++                     [](std::string const& value, cmake* state) -> bool {
++                       state->SetDebugServerTokenPath(value);
++                       return true;
++                     } },
++
+     CommandArgument{
+       "--debug-find", CommandArgument::Values::Zero,
+       [](std::string const&, cmake* state) -> bool {
+@@ -4406,7 +4413,7 @@ bool cmake::GetDeprecatedWarningsAsErrors() const
+ void cmake::StartDebugServerIfEnabled()
+ {
+   if (!m_pDebugServer && DebugServerPort) {
+-    m_pDebugServer.reset(new Sysprogs::HLDPServer(DebugServerPort));
++    m_pDebugServer.reset(new Sysprogs::HLDPServer(DebugServerPort, DebugServerTokenPath));
+     if (!m_pDebugServer->WaitForClient()) {
+       cmSystemTools::Error("Failed to start debugging server. Aborting...");
+       cmSystemTools::SetFatalErrorOccurred();
+diff --git a/Source/cmake.h b/Source/cmake.h
+index 59bdec5b0b..27068b0585 100644
+--- a/Source/cmake.h
++++ b/Source/cmake.h
+@@ -707,6 +707,7 @@ public:
+ 
+   unsigned GetDebugServerPort() const { return DebugServerPort; }
+   void SetDebugServerPort(unsigned port) { DebugServerPort = port; }
++  void SetDebugServerTokenPath(std::string const& debugTokenPath) { DebugServerTokenPath = debugTokenPath; }
+ 
+   cmState* GetState() const { return this->State.get(); }
+   void SetCurrentSnapshot(cmStateSnapshot const& snapshot)
+@@ -780,6 +781,7 @@ protected:
+   std::string GeneratorPlatform;
+   std::string GeneratorToolset;
+   unsigned DebugServerPort = 0;
++  std::string DebugServerTokenPath;
+ #ifndef CMAKE_BOOTSTRAP
+   std::unique_ptr<Sysprogs::HLDPServer> m_pDebugServer;
+ #endif
+-- 
+2.50.1 (Apple Git-155)
+

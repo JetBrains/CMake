@@ -1,0 +1,43 @@
+From 9ec254f98ca22a9a1eff8fdf2d838ea4348cf604 Mon Sep 17 00:00:00 2001
+From: Dmitry Neverov <dmitry.neverov@jetbrains.com>
+Date: Sun, 14 Aug 2022 10:15:41 +0200
+Subject: [PATCH] [dbg] clear var write on unset or set with null value
+
+
+diff --git a/Source/Sysprogs/HLDPServer.cpp b/Source/Sysprogs/HLDPServer.cpp
+index 80aabadae0..b555d81698 100644
+--- a/Source/Sysprogs/HLDPServer.cpp
++++ b/Source/Sysprogs/HLDPServer.cpp
+@@ -512,16 +512,23 @@ namespace Sysprogs
+ 	{
+ 		bool isRead = access_type == cmVariableWatch::VARIABLE_READ_ACCESS || access_type == cmVariableWatch::UNKNOWN_VARIABLE_READ_ACCESS;
+ 
+-		if (!isRead && newValue)
++		if (!isRead)
+ 		{
+-			if (m_CallStack.size() > 0 && !IsIgnoreVarWrite(variable))
++			const cmListFileContext &topFile = mf->GetBacktrace().Top();
++			if (newValue)
+ 			{
+-				std::string const& funcName = m_CallStack[m_CallStack.size()-1]->Function.OriginalName();
+-				if (m_VarWriteCommands.find(funcName) != m_VarWriteCommands.end()) {
+-					const cmListFileContext &topFile = mf->GetBacktrace().Top();
+-					m_VarWrites[topFile.FilePath][variable] = std::make_pair(std::string(newValue), topFile.Line);
++				if (m_CallStack.size() > 0 && !IsIgnoreVarWrite(variable))
++				{
++					std::string const& funcName = m_CallStack[m_CallStack.size()-1]->Function.OriginalName();
++					if (m_VarWriteCommands.find(funcName) != m_VarWriteCommands.end()) {
++						m_VarWrites[topFile.FilePath][variable] = std::make_pair(std::string(newValue), topFile.Line);
++					}
+ 				}
+ 			}
++			else
++			{
++				m_VarWrites[topFile.FilePath].erase(variable);
++			}
+ 		}
+ 
+ 		if (m_WatchedVariables.find(variable) == m_WatchedVariables.end())
+-- 
+2.50.1 (Apple Git-155)
+
