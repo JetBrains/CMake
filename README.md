@@ -11,6 +11,9 @@ This branch contains patches applied to CMake for JetBrains IDE builds (CLion).
 ├── manifests/         # Versioned manifests (flat patch lists)
 │   ├── 4.manifest     # Patch list for CMake 4.x (2 patches)
 │   └── 4.1.manifest   # Patch list for CMake 4.1.x (24 patches, includes debugger)
+├── runtime-params/    # Versioned TeamCity runtime params (optional)
+│   └── 4/             # Files copied to .teamcity-runtime-params/ on output branch
+│       └── openssl.properties
 └── patches/           # Patch files
     ├── dbg-*.patch    # CMake debugger patches (20 files)
     ├── macro-args.patch
@@ -29,6 +32,10 @@ Resolution order for CMake 4.3.0:
 3. `manifests/4.manifest` — major version fallback
 
 The CMake debugger was upstreamed in 4.2, so `4.manifest` only has 2 non-debugger patches while `4.1.manifest` has all 24 (including 20 debugger patches).
+
+## Runtime params
+
+`runtime-params/` contains TeamCity build configuration files, copied to `.teamcity-runtime-params/` on the output branch after patches are applied. Uses the same version fallback as manifests (`runtime-params/4.3.0/` → `runtime-params/4.3/` → `runtime-params/4/`). Optional — if no matching directory exists, the step is skipped.
 
 ## Usage
 

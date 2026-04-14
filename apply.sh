@@ -30,6 +30,7 @@ EOF
 generate_resume() {
     local worktree_dir="$1" failed_patch="$2"
     local all_patches_str="$3" remaining_str="$4"
+    local runtime_params_dir="$5"
 
     cat > "$worktree_dir/resume.sh" <<'RESUME_HEADER'
 #!/usr/bin/env bash
@@ -44,6 +45,7 @@ RESUME_HEADER
 FAILED_PATCH="$failed_patch"
 ALL_PATCHES=($all_patches_str)
 REMAINING=($remaining_str)
+RUNTIME_PARAMS_DIR="$runtime_params_dir"
 RESUME_VARS
 
     cat >> "$worktree_dir/resume.sh" <<'RESUME_BODY'
@@ -80,7 +82,16 @@ for patch_file in "${REMAINING[@]}"; do
     fi
 done
 
-# Step 4: Clean up
+# Step 4: Apply runtime params
+if [[ -n "$RUNTIME_PARAMS_DIR" ]] && [[ -d "$RUNTIME_PARAMS_DIR" ]]; then
+    mkdir -p .teamcity-runtime-params
+    cp "$RUNTIME_PARAMS_DIR"/* .teamcity-runtime-params/
+    git add .teamcity-runtime-params/
+    git commit -q -m "Add TeamCity runtime params"
+    echo "  ✅ runtime params"
+fi
+
+# Step 5: Clean up
 rm -f resume.sh
 git add -A
 git diff --cached --quiet || git commit -m "Remove resume.sh"
@@ -256,6 +267,22 @@ if [[ -z "$MANIFEST_FILE" ]]; then
     exit 1
 fi
 
+# Resolve runtime-params directory (optional).
+# Same fallback: runtime-params/4.3.0/ → runtime-params/4.3/ → runtime-params/4/
+RUNTIME_PARAMS_DIR=""
+for (( depth=${#parts[@]}; depth >= 1; depth-- )); do
+    candidate_ver=""
+    for (( i=0; i < depth; i++ )); do
+        [[ -n "$candidate_ver" ]] && candidate_ver+="."
+        candidate_ver+="${parts[$i]}"
+    done
+    candidate="$SCRIPT_DIR/runtime-params/${candidate_ver}"
+    if [[ -d "$candidate" ]] && ls "$candidate"/* >/dev/null 2>&1; then
+        RUNTIME_PARAMS_DIR="$candidate"
+        break
+    fi
+done
+
 # Read patch list from manifest (flat list, no [platform] sections)
 PATCHES=()
 while IFS= read -r line; do
@@ -271,6 +298,9 @@ done < "$MANIFEST_FILE"
 echo "Tag:      $BASE_TAG ($(git -C "$REPO_ROOT" rev-parse --short "$BASE_TAG"))"
 echo "Branch:   $BRANCH_NAME"
 echo "Manifest: $MANIFEST_FILE (${#PATCHES[@]} patches)"
+if [[ -n "$RUNTIME_PARAMS_DIR" ]]; then
+    echo "Params:   $RUNTIME_PARAMS_DIR ($(find "$RUNTIME_PARAMS_DIR" -maxdepth 1 -type f | wc -l | tr -d ' ') files)"
+fi
 echo
 
 # Create branch from base tag
@@ -326,7 +356,7 @@ for (( i = 0; i < ${#PATCHES[@]}; i++ )); do
         done
 
         generate_resume "$worktree_dir" "$patch_name" \
-            "${PATCHES[*]}" "${remaining[*]}"
+            "${PATCHES[*]}" "${remaining[*]}" "$RUNTIME_PARAMS_DIR"
 
         echo
         echo "  To resolve:"
@@ -339,6 +369,17 @@ for (( i = 0; i < ${#PATCHES[@]}; i++ )); do
     fi
 done
 popd >/dev/null
+
+# Apply runtime params (if any)
+if [[ -n "$RUNTIME_PARAMS_DIR" ]]; then
+    pushd "$worktree_dir" >/dev/null
+    mkdir -p .teamcity-runtime-params
+    cp "$RUNTIME_PARAMS_DIR"/* .teamcity-runtime-params/
+    git add .teamcity-runtime-params/
+    git commit -q -m "Add TeamCity runtime params"
+    echo "  ✅ runtime params"
+    popd >/dev/null
+fi
 
 # Done — clean up worktree
 commit_count=$(git -C "$worktree_dir" rev-list --count "$BASE_TAG"..HEAD)
